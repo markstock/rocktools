@@ -1,0 +1,109 @@
+#!/usr/bin/perl -w
+#
+# rockdice
+#
+# breaks up a file into little bitty bits, for easy oconv-ing
+#
+
+# maximum number of tris per file
+$maxtris = 500000;
+
+# grab file from command-line
+if ($ARGV[0]) {
+  $infile = $ARGV[0];
+  if ($ARGV[1]) {
+    $maxtris = $ARGV[1];
+  }
+}
+
+if (! $ARGV[0] || index($infile,'-') > -1) {
+  print "usage:\n";
+  print "  rockdice infile [num]\n";
+  print "\n";
+  print "where\n";
+  print "   infile is any triangle mesh readable by rockconvert (obj, tin, raw, rad)\n";
+  print "\n";
+  print "   [num] is the maximum number of triangles allowed in a final file\n";
+  print "       before splitting it in half (by distance); default is 500000\n";
+  print "\n";
+  print "warning: rockdice will take a while to run and create many temporary files\n";
+  print "\n";
+  exit(0);
+}
+
+# is there a file extension?
+if (index($infile,'.') == -1) {
+  print "File (",$infile,") has no extension.\n";
+  exit(0);
+}
+
+my ($name, $ext) = split('\.',$infile);
+print "Processing ${name}.${ext}\n";
+
+# does the file exist?
+if (! -e "$infile") {
+  print "File (",$infile,") does not exist.\n";
+  exit(0);
+}
+
+# if file is .obj, convert it to raw first
+if ($ext ne "raw") {
+  $command = "rockconvert ${infile} -oraw > ${name}.raw";
+  print "${command}\n"; system $command;
+  $infile = "${name}.raw";
+}
+
+# open a file to put the radiance commands in
+open(RAD,">${name}_dice.rad") or die "Can't open ${name}_dice.rad: $!";
+
+# begin splitting the file
+# call a recursive function
+split_raw_file ($infile);
+
+close(RAD);
+
+exit;
+
+## Subroutine for checking and splitting a file in two
+sub split_raw_file {
+
+  #my @files = @_;
+  my $file = $_[0];
+
+  # find out how many triangles are in it
+  my @infoarray = split(' ',`rockinfo ${file}`);
+  my $numtris = $infoarray[3];
+  print "There are ${numtris} triangles in file ${file}.\n";
+
+  # split up the file name
+  my ($name, $ext) = split('\.',${file});
+
+  if ($numtris > $maxtris) {
+
+    # split this file!
+    $command = "rocksplit $file -l -root ${name} -oraw";
+    print "${command}\n"; system $command;
+
+    # read the stdout to get the names of the new files
+    #open(INFO,"<.new_$file") or die "Can't open .new_$file: $!";
+    #while (<INFO>) {
+    #  my @infoarray = split;
+    #  $child[] = $infoarray[2];
+    #}
+
+    # then, run this routine on the children!
+    split_raw_file ("${name}l.raw");
+    split_raw_file ("${name}r.raw");
+
+  } else {
+
+    # the file is small enough, convert it back to obj and oconv it!
+    $command = "rockconvert ${file} -oobj > ${name}.obj";
+    print "${command}\n"; system $command;
+    $command = "obj2mesh ${name}.obj > ${name}.msh";
+    print "${command}\n"; system $command;
+    print RAD "default mesh ${name} 1 ${name}.msh 0 0\n";
+
+  }
+
+}

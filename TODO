@@ -1,0 +1,443 @@
+TODO list for the Rocktools package
+
+Last modified:
+2007-11-23 MJS
+2006-05-28 MJS
+2004-01-27 MJS
+2003-09-17 MJS
+2003-07-15 Mark Stock
+1999-06-09 Mark Stock
+
+
+Ideas:
+
+Use qhull in rockcreate! Link it in directly, don't do a system call!
+I've learned that calling libhull.a just causes problems.
+
+Cross-compile. Note the mingw-gcc-core-4.2.1-4.fc8 package and its
+/usr/local/bin/i386-mingw32-gcc compiler. It builds for windows. Test
+the executables with wine. Also, can compile these on Mac with gcc,
+but you'll need to find and link in the proper libpng. Take a look at
+the vic2d Makefile.
+
+
+
+Random ideas
+
+For rocktools:
+1) when perturbing the refined nodes, add a random component to ALL nodes
+   and not just the new ones; in this way a Gaussian walk is created, and
+   the scaling of the magnitude from one scale to the other is related by
+   the Hausdorff dimension. - DONE
+2) Also, when determining the scaling magnitude, use the size of the
+   triangles instead of the splitting iteration number! Thus, tris of
+   any given size are the same over the entire object.
+3) Use Gaussian random numbers. - DONE
+4) Create some method to make sure that the structure is refined to the
+   same general triangle size over its entire surface - DONE
+5) Optionally vary the Hausdorff dimension depending on the local curvature.
+
+
+For erode, allow the erosion to not only move the node down, but
+also to push it side-to-side. Specifically, use the momentum
+of the flow to push the node in the direction of the inflowing
+stream! This will allow complex behavior to appear, such as 
+meandering!
+
+Also, make sure to add a "slump" routine, taking as input an
+angle which to maintain, based on the underlying rock hardness.
+
+This sort of routine could be used to compute snow placement on 
+trimeshes.
+
+Generally, it would be a pure diffusion process, run over a trimesh...
+hmmm, this may require more thought.
+
+
+IDEAS FOR NEW PROGRAMS
+
+- Write rockbreak, a program which takes a closed 3D triangle
+  mesh file and breaks it into two or more separate, closed
+  triangular mesh objects with matching fracture faces.
+  Even better: use a fractal model of clump sizes to determine
+  the number chunks of given size...or will simply using cutting
+  planes enforce that?
+
+- Write rockerode, essentially computing flow across
+  the surface of a tri mesh, with either a constant rectangular
+  gravity vector, or a spherical gravity vector, so that you can
+  use the program on moons or planets.
+
+  The first step for this program would be writing a tool that
+  calculates the simple, non-evaporating, non-eroding, surface
+  flow, given constant rain input on each triangle. Then, add
+  stuff like erosion, graphics, and lakes/evaporation/seepage.
+
+  How to do this? Each triangle has one lowest node, this is
+  the node that all surface water is assumed to flow to. All
+  flow takes place on triangle edges, node-to-node. Anyway, 
+  each node will have one and only one downhill node to which
+  all of its surface water flows. (Or, it shares it between
+  all downhill nodes?) If there are no downhill nodes, the
+  flow is assumed to go underground, and is lost.
+
+  How do I handle edges? How does the program know that a node
+  is on an edge? Well, if two adjoining triangles do not have
+  all 3 adjacents filled, it's on an edge? Or, if you wanted
+  to ignore edges, flow would just stay on an edge and eventually
+  hit a local minimum and pool or vanish. No problem.
+
+  Each node will have a pointer to the uphill node and the
+  downhill node, and possibly a link to a triangle or two that
+  it gets it's primary flow from.
+
+  Each stream section should have a volume flow, a sediment
+  fraction (percent of saturated), and a speed (based on slope
+  and length). When a branch changes speed, it will either 
+  gain carried sediment (erode) or lose carried sediment
+  (deposit), thereby raising or lowering the land respectively.
+
+  How about assuming that all triangles with a slope greater
+  then a threshhold are considered to be solid (resistant to
+  erosion) and below that slope considered to be accumulated
+  sediment (less resistant), thereby, plains can be formed
+  at the base of hills and slopes, and the sediment-covered
+  areas can be flattened out, carrying sediment from the mountains
+  (where 99% or the erosion takes place) to the fields. But, 
+  how do we smooth out the fields? This can be made to occur
+  by stating that on less resistant ground (with low slope) most
+  water soaks into the ground and becomes groundwater.
+
+  OK, so for the basic version, flat triangles will produce 
+  less runoff than equal-projected-area triangles with steeper
+  slope because most of the water reaching a flat triangle would
+  soak in, and not run off.
+
+  On the topic of using this in a spherical context, one would
+  need to input the effective center of gravity. The surface
+  should not need to be closed, although fluid will run through 
+  any openeings, wouldn't it?
+
+- Write rocklake, one that computes the locations
+  and elevations of lakes and streams through the triangles.
+  Actually, rockerode should be able to do the same thing,
+  it would only need one step to find the lakes, too.
+
+- Write rockflow, which runs a 3D vortex method over the
+  surface (could be extensive) to compute wind speed and 
+  direction at all points in space. This data could be used 
+  for darn near anything.
+  * A 3D static vortex code would work here: it could make
+  sails better than what I'm doing, and it could make sand
+  dunes, and other eolian erosive features.
+
+- Write rockmod, using the same format as rocktrim, but that
+  can transform meshes in certain useful ways (remapping, 
+  adding waves, other crap)
+
+- Write rockmod, to clip all triangles beyond or within
+  a certain x, y, z band (useful when making a mountain
+  out of a highly textured rock). Also could flatten the
+  bottom of rocks to allow for a cloud-like object.
+  With a simple coordinate mapping, one could round off the
+  bottom of rocks for use for clouds, or with a spherical
+  mapping, one could produce a mountain coming up from
+  surrounding lowlands.
+  Basically, this program is for all possible modifications
+  to the triangle mesh that do not require knowledge of node
+  and triangle connectivity. It reads in one tri, modifies
+  it, and writes it out.
+  Another feature would be scaling, [xscale] [yscale] [zscale]
+  or a global scale. Or a warp, or a clip, or some other 
+  remapping.
+
+- Write rocksettle. Use hull to compute the convex hull of 
+  the current rock shape, and read in the resulting polygons.
+  For each polygon, find its minimum cone area, with the 
+  apex being the center of gravity, and the base being each
+  individual face. Basically, determine the odds that the
+  rock will rest on any given face. Write those odds out to
+  a text file, referenced to each face.
+  * save this for after rockmod, it is not as important
+
+- Write rockcsg. It would run simple boolean operations on
+  triangle meshes. Ouch. Wow.
+
+
+IDEAS FOR MODIFICATIONS OF EXISTING PROGRAMS
+
+general:
+
+- Use new spline interpolation procedure from vort3d to smooth the mesh
+  surfaces in rockxray!
+  New: uses splines to make new nodes in rockdetail!
+
+- Finish writing the documentation (rocktools.doc)
+
+- export compact-notation wavefront .obj files!
+
+- export normal vectors in .obj files!
+
+- Write the parameters used to a comment at the beginning of
+  any output file.
+  * do all output files even support comments?
+
+- Write more robust input/output routines. First, try
+  writing an .obj input method, then, try to support surface
+  normal information in several formats. Lastly, write a
+  Radiance input routine.
+  One nice addition to assist this would be adding an integer
+  field to the trangles and nodes, this would aide in writing
+  a .obj file immensely.
+  * OK, it now writes surface normals for obj, pov, tin, and
+  rib, forget radiance, forget raw.
+
+- A better method for re-orienting all faces is to cycle through
+  the linked list after defining one particular face as being
+  correctly oriented, and re-orient those triangles adjacent to
+  a correct one until all triangles are ordered correctly.
+  * ideally, this will be the way to do it, make it a subroutine
+  in utils.c
+
+rocktrim:
+
+- Allow rocktrim to: write the trimmed triangles to another file
+  *done
+
+rockdetail:
+
+- For rockdetail, try to add feature that will not split a 
+  triangle if all 3 adjacent triangles point away from
+  the viewer...many triangles are being wasted like that.
+  I guess you'd need a new option, -vd, the view direction
+  vector. Hmmm, with this information, triangles behind
+  the viewpoint could be spared, too.
+  Problem: when triangles are not split, the random number
+  list does not get advanced by an appropriate amount, and
+  the detailed terrain shape changes. Is this bad?
+
+- Allow the user to define a 1D array of values for the program
+  to use as perturbation values vs. recursion level. For example,
+  instead of using the base value and exponent, one could define
+  [0.1 0.1 0.12 0.15 0.2 0.2] as the perturbations at recursion
+  levels 1 through 6. This allows greater control over the 
+  process, and doesn't seem too difficult to support.
+
+rocksmooth:
+
+- I need to write rocksmooth soon! make the first version a 
+  simple averaging technique, where each new node location is
+  merely the average of itself and its N neighbors.
+  * that part is done
+  If you add a threshhold value, this program could serve as
+  rockchip, too.
+  This program could later be used to calculate new surface
+  normals for each node of each face, but that is not neccesary
+  right now. That would also require the export routines to
+  support normal vectors.
+  * yep, a simple way is done
+
+- I think I'll just add a threshhold to rocksmooth. If the 
+  threshhold is 0.0, only convex features will be smoothed, if it
+  is +0.5, only very convex (pointy) features will be chipped, 
+  and if it is -0.5 most nodes will be averaged with surrounding
+  nodes to create a uniformly smooth object.
+
+
+IDEAS THAT HAVE ALREADY BEEN IMPLEMENTED
+
+- Rewrite rockcut to use subroutines to import, and subroutines
+  to export triangles. This way, we could use the same program
+  to rotate, transform, and crop meshes. Dumbass!
+  * OK, rocktrim trims triangles now. It can be used as a base
+  program for others.
+
+- Add -ce option to rocksmooth, one to clamp all edge nodes.
+  Is it possible to identify these?
+  * done
+
+- Add code to rockcut to allow reading and modifying of
+  .tin and .raw files. You may with to drop the radiance
+  file read/write, ya know.
+  * done
+
+- Here's what's wrong: the set_adjacent needs the vertexes to
+  be oriented correctly, but the vertex orientation program
+  needs the adjacent triangle links to be correct.
+  Solution is to bake an ordering algorithm into set_adjacent?
+  No, the solution is to use the fact that the shape is a convex
+  hull, each outward pointing face should point away from any
+  other node on the surface. This is not a general method,
+  but it is fast.
+  * that's what I did, it is *not* general
+
+- For rockchip: take each node and find the unit length vector
+  to all connected nodes. Average those unit-length vectors to
+  find a center, then find the distance from that center to the
+  original node. If its greater than a threshhold, chip the 
+  corner by moving the original node closer to the average center.
+  Hmmmm, it seems that this and rocksmooth are pretty much the 
+  same thing, but this one uses a threshhold, and Xsmooth moves
+  all nodes.
+
+- Organize the subroutines:
+  rockXXXXX.c - the "main" and "Usage" routines, only
+  XXXXXutil.c - the main subroutines neccessary for this prog
+  utils.c - very general utility subroutines
+  inout.c - only reading on and writing out of triangle data
+  Using this method, a program (rockdetail) that needs to
+  use methods from another program (surface smoothing algo
+  from rocksmooth) can include that other program's util
+  file (smoothutil.c) when building the executable (rockdetail).
+  * done
+
+- Add -ce flag, it will clamp the open edges. This will make all
+  of the open edges on the initial polygon stay straight. This
+  shouldn't be too hard to implement. It would have no effect on
+  closed shapes such as the cube or the tetrahedron.
+  * done, images in the works
+
+- Need some way to prevent elongated triangles in the input
+  deck. They pretty much ruins a run. Should there just be controls
+  on the quality of the input mesh?
+  * yeah, probably. rockcreate shuns long triangles
+
+- Allow testing of triangles for size, and optional recursion
+  on large triangles, or optionally leaving small ones alone
+  for a recursion level. This requires a mechanism to control
+  the data structure to have broken and unbroken triangles
+  on the same recursion level. I don't know how to do that.
+  * done
+
+- Allow for a point of detail, from which distance to the current
+  triangle is measured, and if below a threshhold, that triangle
+  is split, otherwise it is left alone. This will allow detailing
+  close to the viewpoint, without unneccessary far-field detail.
+  * this is important, but I'd need to learn how to run a 
+    recursion level and *not* break some triangles
+  * that, too, is done
+
+- Allow breaking apart of quadrilaterals and pentagons if they
+  appear in the input deck.
+  * possible, is there a need?
+
+- Allow chipping off of sharp corners to round off rocks.
+  * this seems important, it may warrant a stand-alone program,
+    but the actual chipping routine could be called for each
+    recursion level within rockdetail, too.
+  * This is the equivalent of moving a single node's location
+    inward to flatten the protrusion. If the node is shared by
+    only 3 triangles, take those 3 out and replace them by one
+    single triangle, and delete the node.
+    Duh, all nodes will have 
+
+- Set perturbation of new midpoints to be either a fraction of the 
+  length of that side, or a constant, toggleable.
+  * Hmmm, is this really neccessary?
+  * it's a fraction, and that works well
+
+- Allow surface normal smoothing calculations, but send the data to
+  a subroutine that can be called separately by rocksmooth, a 
+  program to be written in the future. Would this be a -s argument?
+  * not in rockdetail, in rocksmooth
+
+- IMPORTANT - When more than one recursion is done, information
+  is lost between larger tri's, allowing gaps in the final surface.
+  To solve this may require a more complicated data structure, or just
+  better data handling.
+  * This has been fixed for the 0.1 release
+
+- Allow alternative starting shapes, say, a cube, or rectangle, or 
+  flattened sphere, etc. Or, even, read it in from a file.
+  * This is a feature of rockdetail
+
+- When splitting triangles, do not use the exact centerpoint, 
+  instead, jiggle the centerpoint around
+  * Yet another feature of rockdetail
+
+- Store neighbor data within triangle object; basically, make this
+  simpler for a wavefront read-in or write-out by using a better
+  data format, one in which nodes are stored in a list separately
+  from triangles. This way, surface normals are a lot easier to
+  calculate.
+  * Also standard in rockdetail
+
+- rockcreate can either be a script to run hull and compute a 
+  convex hull of a series of points (more than 4), OR, it could
+  be a script to run hull to compute the 3D Voronoi volumes,
+  pick one (or more) and 
+  * it does a convex hull
+
+
+OTHER GENERAL INFORMATION
+
+- File formats available for input/output/normals
+  	input	output	normals
+  Have	.raw	.raw	.obj
+ 	.tin	.tin	.pov
+ 		.rad	.tin
+ 		.pov	.rib
+ 		.obj
+ 		.rib
+
+  Want	.obj	.dxf?
+ 		.off?
+
+- Helper programs can be: 
+  rockcreate (takes a series of random points and creates a selection
+    of initial rock shapes via a 3D voronoi cell algorithm)
+    * No, use a convex hull, you'll get fewer prisms
+  rockdetail (recursively refine/roughen a tri mesh)
+  rockchop (chops sharp corners), include in rocksmooth
+  rockerode (erodes tops and fills basins/valleys, useful on a
+    planetary scale, only, OR would erode the rock as if it were
+    on a planet when the gravity vector is defined)
+  rocksmooth (adds surface normal attributes to a mesh, or burns
+    away sharp surfaces to make a smoother rock)
+  rocksettle (uses center of mass and convex hull to determine the
+    likely settling orientations for the rock, stores them in comments)
+  rockbreak (breaks a single rock into 2 smaller rocks, adds matching
+    rough surface to both rocks on the break plane) also rocksplit?
+
+  * is it possible to pass a pointer from one program to the next?
+    or does the next program have to deal with making the entire
+    triangle database all over again?
+
+  * should I create a binary database? No, the pointers would be
+    invalid after the read. How do they do that?
+
+- Here's some information on how renderman does triangles:
+
+'Polygon "P" [vertices]' is straight from the BMRT docs, I tested it, and it
+renders with no errors.  It is correct.
+
+Here is a quote from the docs in case you need to add smoothing/normals to
+the mesh:
+--------------------------------------------
+2.7 Specifying Geometric Primitives
+
+Polygon parameters
+RiPolygon (int nvertices, ...)
+
+Give a simple convex polygon. The "P" parameter is required, all others are
+optional. The number of vertices is specified implicitly by the number of
+points given after "P". Points should be given in clockwise order. Valid
+parameters include:
+
+"P" points    Enclosed in brackets, all points in the polygon are given as
+x,y,z triples.
+
+"Cs" points   RGB values are given for colors at each vertex in the polygon.
+This is how Gouraud shading is done.
+
+"N" points    Vectors are given for normals at each vertex in the polygon.
+This is how Phong shading is done.
+
+Examples:
+Polygon "P" [ 1 1 0 0 4 5 0 9 0 ]
+Polygon "P" [ 0 1 0 0 8 0 4 4 0 ] "N" [ 1 0 0 1 0 0 0 1 0 ]
+RiPolygon (3, "P", (float *)p, "N", (float *)n, RI_NULL);
+
+
+
+Created 1999-02-26
