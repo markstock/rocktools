@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2003-2004,2006-2007,2010-11  Mark J. Stock
+ * Copyright (C) 1999,2003-2004,2006-2007,2010-13  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,14 +24,6 @@
  *
  *********************************************************** */
 
-// TO DO
-// add fillets around legs/walls, esp for metal models,
-//   but generally for strength
-// do simple search of 9 or 25 nearest upper-surface points,
-//   and place the bottom point so that it is a minimum of
-//   "depth" units from ANY upper-surface point; that way 
-//   the model can't accidentally get too thin
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +40,7 @@ void rescale_nodes (double);
 int Usage(char[160],int);
 
 extern float** read_png (char*, float, float, int*, int*);
-extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, double, int, int, double, double);
+extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double);
 
 int main(int argc,char **argv) {
 
@@ -61,6 +53,7 @@ int main(int argc,char **argv) {
    int ny = -1;
    int do_rescale = FALSE;
    int do_bottom = FALSE;
+   int do_trans = FALSE;
    int do_legs = FALSE;
    int do_walls = FALSE;
    float **hf = NULL;
@@ -93,6 +86,9 @@ int main(int argc,char **argv) {
          }
       } else if (strncmp(argv[i], "-bottom", 2) == 0) {
          do_bottom = TRUE;
+      } else if (strncmp(argv[i], "-transparency", 3) == 0) {
+         do_bottom = TRUE;
+         do_trans = TRUE;
       } else if (strncmp(argv[i], "-legs", 2) == 0) {
          do_legs = TRUE;
          // legs and walls are exclusive
@@ -127,7 +123,7 @@ int main(int argc,char **argv) {
                depth = atof(argv[++i]);
             }
          }
-      } else if (strncmp(argv[i], "-thickness", 2) == 0) {
+      } else if (strncmp(argv[i], "-thickness", 3) == 0) {
          if (argc > i) {
             if (!isalpha(argv[i+1][1])) {
                thick = atof(argv[++i]);
@@ -150,8 +146,12 @@ int main(int argc,char **argv) {
    fprintf(stderr,"Read %d x %d png file\n",nx,ny);
    fflush(stderr);
 
+   // if we're doing two-sided, scale the intensities to a log scale
+   //   so that light traveling through the piece is correct
+   // later
+
    // if we're doing a bottom, and the layer thickness would touch the ground, fix it
-   if (do_bottom) {
+   if (do_bottom && !do_trans) {
       if (hmin - depth < 0.0) {
          // move the hmax up the same amount
          hmax = 2*depth + (hmax-hmin);
@@ -159,6 +159,23 @@ int main(int argc,char **argv) {
          hmin = 2*depth;
          fprintf(stderr,"Reset -elev to %g %g to account for depth\n",hmin,hmax);
          fflush(stderr);
+      }
+   }
+
+   // if we're doing a transparency, scale the heightfield to logarithms
+   // this thickness will be doubled on the underside
+   if (do_trans) {
+      for (i=0; i<nx; i++) {
+         for (j=0; j<ny; j++) {
+            //hf[i][j] = (double)log(0.05+hf[i][j]);
+            // add a tad to make sure we don't get zero
+            hf[i][j] += 0.03;
+            // ungamma-correct
+            //hf[i][j] = expf(0.45*logf(hf[i][j]));
+            // scale value to thickness
+            hf[i][j] = logf(1./hf[i][j]);
+            // min thickness will be applied later
+         }
       }
    }
 
@@ -185,7 +202,7 @@ int main(int argc,char **argv) {
    // generate the mesh
    fprintf(stderr,"Generating mesh\n");
    fflush(stderr);
-   tri_head = generate_heightmesh (tri_head,hf,nx,ny,do_bottom,depth,do_legs,do_walls,thick,inset);
+   tri_head = generate_heightmesh (tri_head,hf,nx,ny,do_bottom,do_trans,depth,do_legs,do_walls,thick,inset);
 
    // apply uniform scaling transformation
    if (do_rescale) {
@@ -195,7 +212,7 @@ int main(int argc,char **argv) {
    }
 
    // Write triangles to stdout
-   (void) write_output (tri_head,output_format,argc,argv);
+   (void) write_output (tri_head,output_format,TRUE,argc,argv);
 
    fprintf(stderr,"Done.\n");
    exit(0);
@@ -228,7 +245,7 @@ void rescale_nodes (double scale) {
  */
 int Usage(char progname[80],int status) {
 
-   /* Usage for rockconvert */
+   /* Usage for rockpng */
    static char **cpp, *help_message[] =
    {
        "where [-options] are one or more of the following:                         ",
@@ -245,6 +262,9 @@ int Usage(char progname[80],int status) {
        "                                                                           ",
        "   -bottom                                                                 ",
        "               generate a lower-facing mesh beneath the top mesh           ",
+       "                                                                           ",
+       "   -transparency                                                           ",
+       "               generate a two-sided mesh, with relief on both sides        ",
        "                                                                           ",
        "   -depth val                                                              ",
        "               depth (in non-dimensional units) of top-to-bottom layer     ",
@@ -272,13 +292,13 @@ int Usage(char progname[80],int status) {
        "Options may be abbreviated to an unambiguous length",
        "Output is to stdout, so redirect it to a file using '>'",
        " ",
-       "rockconvert converts tri meshes from one file format to another            ",
+       "rockpng creates a triangle mesh from a PNG heightfield                     ",
        "                                                                           ",
        "examples:                                                                  ",
-       "   rockconvert in.tin -oobj > out.obj                                      ",
+       "   rockpng in.tin -oobj > out.obj                                      ",
        "      Read in the file in.tin and write a Wavefront .obj format version    ",
        "                                                                           ",
-       "   rockconvert in.raw -s 2 -orad > out.rad                                 ",
+       "   rockpng in.raw -s 2 -orad > out.rad                                 ",
        "      Read in the input file and scale all nodes by 2.0 in x, y, and z;    ",
        "      finally write the result in Radiance format                          ",
        "                                                                           ",

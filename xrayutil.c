@@ -483,8 +483,12 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    fprintf(stderr,", maxval is %g\n",maxval); fflush(stderr);
 
    // peak cropping is now a command-line option
-   //if (!is_solid) maxval *= 0.8;
-   if (!is_solid) maxval *= peak_crop;
+   fprintf(stderr,", maxval is %g",maxval);
+   if (!is_solid) {
+      maxval *= peak_crop;
+      fprintf(stderr,", peak-cropped maxval is %g",maxval);
+   }
+   fprintf(stderr,"\n"); fflush(stderr);
 
    // scale all values
    if (write_hibit) {
@@ -535,8 +539,14 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          if (a[i][j] > maxval) maxval = a[i][j];
       }
    }
-   fprintf(stderr,", maxval is %g\n",maxval); fflush(stderr);
-   if (!is_solid) maxval *= 0.8;
+
+   fprintf(stderr,", maxval is %g",maxval);
+   if (!is_solid) {
+      maxval *= peak_crop;
+      fprintf(stderr,", peak-cropped maxval is %g",maxval);
+   }
+   fprintf(stderr,"\n"); fflush(stderr);
+
    // scale all values
    if (write_hibit) {
       for (j=yres-1; j>-1; j--) {

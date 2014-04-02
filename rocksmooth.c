@@ -151,7 +151,7 @@ int main(int argc,char **argv) {
    if (do_normals) (void) compute_normals_3(tri_head,3,allow_sharp_edges,edge_thresh);
 
    // Write triangles to stdout
-   num_wrote = write_output(tri_head,output_format,argc,argv);
+   num_wrote = write_output(tri_head,output_format,TRUE,argc,argv);
 
    fprintf(stderr,"Done.\n");
    exit(0);

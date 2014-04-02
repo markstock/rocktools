@@ -46,7 +46,7 @@ extern int pack_into_cube ();
 extern tri_pointer create_convex_hull ();
 
 //extern int convert_simplex_to_tris(simplex*);
-extern int write_output (tri_pointer, char[4], int, char**);
+//extern int write_output (tri_pointer, char[4], int, char**);
 
 
 int main(int argc,char **argv) {
@@ -149,7 +149,7 @@ int main(int argc,char **argv) {
 
 
    // Write triangles to stdout
-   (void) write_output(tri_head,output_format,argc,argv);
+   (void) write_output(tri_head,output_format,TRUE,argc,argv);
 
 
    fprintf(stderr,"Done.\n");

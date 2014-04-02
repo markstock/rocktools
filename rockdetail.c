@@ -217,7 +217,7 @@ int main(int argc,char **argv) {
    //}
 
    /* Write triangles to stdout */
-   (void) write_output(tri_head,output_format,argc,argv);
+   (void) write_output(tri_head,output_format,TRUE,argc,argv);
 
    fprintf(stderr,"Done.\n");
    exit(0);

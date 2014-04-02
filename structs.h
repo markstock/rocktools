@@ -194,7 +194,7 @@ extern void prepare_node_bin(bin_ptr,VEC,VEC);
 extern float** allocate_2d_array_f(int,int);
 extern int free_2d_array_f(float**);
 extern tri_pointer read_input(char*,int,tri_pointer);
-extern int write_output(tri_pointer,char*,int,char**);
+extern int write_output(tri_pointer,char*,int,int,char**);
 extern int find_mesh_stats(char *,VEC*,VEC*,int*,int*);
 extern int get_tri(FILE*,int,tri_pointer,char*);
 extern int write_tri(FILE*,int,tri_pointer,char*);

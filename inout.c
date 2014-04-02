@@ -39,14 +39,13 @@ tri_pointer read_tin(char[80],tri_pointer);
 tri_pointer read_obj(char[80],int,tri_pointer);
 tri_pointer read_msh(char[80],tri_pointer);
 
-int write_output(tri_pointer, char[4], int, char**);
-//int write_output(tri_pointer, char[4]);
-int write_raw(tri_pointer);
-int write_tin(tri_pointer);
-int write_obj(tri_pointer, int, char**);
-int write_rad(tri_pointer);
-int write_pov(tri_pointer);
-int write_rib(tri_pointer);
+int write_output(tri_pointer, char[4], int, int, char**);
+int write_raw(tri_pointer, int);
+int write_tin(tri_pointer, int);
+int write_obj(tri_pointer, int, int, char**);
+int write_rad(tri_pointer, int);
+int write_pov(tri_pointer, int);
+int write_rib(tri_pointer, int);
 
 int find_mesh_stats(char *,VEC*,VEC*,int*,int*);
 int get_tri(FILE*,int,tri_pointer,char*);
@@ -936,25 +935,25 @@ tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
  * Determine the appropriate output file format from
  * the command-line and write the triangles to stdout
  */
-int write_output(tri_pointer head, char format[4], int argc, char **argv) {
+int write_output(tri_pointer head, char format[4], int keep_norms, int argc, char **argv) {
 
    int num_wrote;
 
    if (strncmp(format, "raw", 3) == 0)
-      num_wrote = write_raw(head);
+      num_wrote = write_raw(head, keep_norms);
    else if (strncmp(format, "pov", 1) == 0)
-      num_wrote = write_pov(head);
+      num_wrote = write_pov(head, keep_norms);
    else if (strncmp(format, "rad", 3) == 0)
-      num_wrote = write_rad(head);
+      num_wrote = write_rad(head, keep_norms);
    else if (strncmp(format, "tin", 1) == 0)
-      num_wrote = write_tin(head);
+      num_wrote = write_tin(head, keep_norms);
    else if (strncmp(format, "obj", 1) == 0)
-      num_wrote = write_obj(head,argc,argv);
+      num_wrote = write_obj(head, keep_norms, argc, argv);
    else if (strncmp(format, "rib", 2) == 0)
-      num_wrote = write_rib(head);
+      num_wrote = write_rib(head, keep_norms);
    else {
       fprintf(stderr,"No output file format or unsupported file format given, using raw\n");
-      num_wrote = write_raw(head);
+      num_wrote = write_raw(head, keep_norms);
    }
 
    return num_wrote;
@@ -964,7 +963,7 @@ int write_output(tri_pointer head, char format[4], int argc, char **argv) {
 /*
  * Write out a RAW file
  */
-int write_raw(tri_pointer head) {
+int write_raw(tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -981,7 +980,7 @@ int write_raw(tri_pointer head) {
          fprintf(stdout,"%lf %lf %lf ",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
       }
       // and the node normals
-      if (curr_tri->use_norm) {
+      if (keep_norms && curr_tri->use_norm) {
          for (i=0; i<3; i++) {
             fprintf(stdout,"%lf %lf %lf ",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
          }
@@ -1003,7 +1002,7 @@ int write_raw(tri_pointer head) {
 /*
  * Write out a TIN file
  */
-int write_tin(tri_pointer head) {
+int write_tin(tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1016,7 +1015,7 @@ int write_tin(tri_pointer head) {
    while (curr_tri) {
 
       /* write the node normals */
-      if (curr_tri->use_norm) {
+      if (keep_norms && curr_tri->use_norm) {
          fprintf(stdout,"n");
          for (i=0; i<3; i++) {
             fprintf(stdout," %lf %lf %lf",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
@@ -1049,7 +1048,7 @@ int write_tin(tri_pointer head) {
  * compact notation is where each unique node is listed once, if this
  * is set to FALSE, preceding each triangle will be the three nodes' locations
  */
-int write_obj(tri_pointer head, int argc, char **argv) {
+int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
 
    int use_compact = TRUE;
    int i,cnt;
@@ -1102,7 +1101,7 @@ int write_obj(tri_pointer head, int argc, char **argv) {
             }
          }
          // and write the tri itself
-         if (curr_tri->use_norm) {
+         if (keep_norms && curr_tri->use_norm) {
             // check for degeneracy!
             // write the unique nodes
             for (i=0; i<3; i++) {
@@ -1132,7 +1131,7 @@ int write_obj(tri_pointer head, int argc, char **argv) {
       cnt = tri_ct*3 + 1;
 
       /* use normal information or not */
-      if (curr_tri->use_norm) {
+      if (keep_norms && curr_tri->use_norm) {
          // check for degeneracy!
          if (fabs(curr_tri->norm[i].x + curr_tri->norm[i].y + curr_tri->norm[i].z) < 1.e-6) curr_tri->norm[i].z = 1.;
          /* write the node normals and locations */
@@ -1176,7 +1175,7 @@ int write_obj(tri_pointer head, int argc, char **argv) {
 /*
  * Write out POV-readable syntax
  */
-int write_pov(tri_pointer head) {
+int write_pov(tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1189,7 +1188,7 @@ int write_pov(tri_pointer head) {
    /* run thru the triangle list and write them out */
    while (curr_tri) {
 
-      if (curr_tri->use_norm) {
+      if (keep_norms && curr_tri->use_norm) {
 
          /* write the triangle with surface normals defined */
          fprintf(stdout,"smooth_triangle {\n");
@@ -1230,7 +1229,7 @@ int write_pov(tri_pointer head) {
 /*
  * Write out Radiance-readable syntax
  */
-int write_rad(tri_pointer head) {
+int write_rad(tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1295,7 +1294,7 @@ int write_rad(tri_pointer head) {
 /*
  * Write out Renderman-compliant syntax (RIB format for BMRT)
  */
-int write_rib(tri_pointer head) {
+int write_rib(tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1314,7 +1313,7 @@ int write_rib(tri_pointer head) {
          fprintf(stdout," %g %g %g",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
       }
 
-      if (curr_tri->use_norm) {
+      if (keep_norms && curr_tri->use_norm) {
          fprintf(stdout,"] \"N\" [");
          for (i=2; i>-1; i--) {
             fprintf(stdout," %g %g %g",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
@@ -1542,6 +1541,7 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals
               current_tri->norm[2].y = atof(d[16]);
               current_tri->norm[2].z = atof(d[17]);
               current_tri->use_norm = TRUE;
+              fprintf(stderr,"  found norm %g %g\n",current_tri->norm[0].x,current_tri->norm[0].y);
             } else {
               current_tri->use_norm = FALSE;
             }

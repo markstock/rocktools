@@ -115,7 +115,7 @@ int main(int argc,char **argv) {
 
 
    /* Write triangles to stdout */
-   num_wrote = write_output(tri_head,output_format,argc,argv);
+   num_wrote = write_output(tri_head,output_format,TRUE,argc,argv);
 
 
    /* Somehow, write flow data somewhere */

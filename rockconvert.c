@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2003-2004,2006-2007  Mark J. Stock
+ * Copyright (C) 1999,2003-2004,2006-2007,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,6 +50,7 @@ int main(int argc,char **argv) {
    char progname[160];		/* name of binary executable */
    char output_format[4];	/* file format extension for output */
    tri_pointer tri_head = NULL;
+   int keep_normals = TRUE;
    int do_rescale = FALSE;
    int do_trans = FALSE;
    int do_trans_first = FALSE;
@@ -66,6 +67,8 @@ int main(int argc,char **argv) {
    for (i=2; i<argc; i++) {
       if (strncmp(argv[i], "-o", 2) == 0) {
          strncpy(output_format,argv[i]+2,4);
+      } else if (strncmp(argv[i], "-i", 2) == 0) {
+         keep_normals = FALSE;
       } else if (strncmp(argv[i], "-s", 2) == 0) {
          do_rescale = TRUE;
          if (argv[i+1][0] != '-') {
@@ -117,7 +120,7 @@ int main(int argc,char **argv) {
    if (do_trans && !do_trans_first) translate_nodes (trans);
 
    // Write triangles to stdout
-   (void) write_output (tri_head,output_format,argc,argv);
+   (void) write_output (tri_head,output_format,keep_normals,argc,argv);
 
    fprintf(stderr,"Done.\n");
    exit(0);
@@ -183,6 +186,8 @@ int Usage(char progname[80],int status) {
        "                                                                           ",
        "   -t [x [y [z]]]                                                          ",
        "               translate geometry by the given x,y,z, default=0,0,0        ",
+       "                                                                           ",
+       "   -ignore     ignore normals in output (strips normals)                   ",
        "                                                                           ",
        "   -help       (in place of infile) returns this help information          ",
        " ",

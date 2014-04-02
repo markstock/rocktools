@@ -25,13 +25,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#define png_infopp_NULL (png_infopp)NULL
+#define int_p_NULL (int*)NULL
 #include "png.h"
 #include "structs.h"
 
 float** read_png (char*, float, float, int*, int*);
 png_byte** allocate_2d_array_pb (int,int,int);
 int free_2d_array_pb (png_byte**);
-tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, double, int, int, double, double);
+tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double);
 double find_optimum_offset_z (int, int, float**, int, int, double, double);
 tri_pointer add_twotris_by_fournodes (tri_pointer, int*, node_ptr, node_ptr, node_ptr, node_ptr);
 tri_pointer add_manytris_by_fournodes (tri_pointer, int*, int*, BIN*, node_ptr, node_ptr, node_ptr, node_ptr);
@@ -132,7 +134,7 @@ float** read_png (char *infile, float redmin, float redrange, int* nx, int* ny) 
 
    /* Expand grayscale images to the full 8 bits from 1, 2, or 4 bits/pixel */
    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-      png_set_gray_1_2_4_to_8(png_ptr);
+      png_set_expand_gray_1_2_4_to_8(png_ptr);
 
    /* Optional call to gamma correct and add the background to the palette
     * and update info structure.  REQUIRED if you are expecting libpng to
@@ -255,7 +257,7 @@ int free_2d_array_pb(png_byte** array){
  *   nx,ny    - dimensions of hf
  */
 tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int ny,
-                                 int do_bottom, double depth,
+                                 int do_bottom, int do_trans, double depth,
                                  int do_legs, int do_walls, double thick, double inset) {
 
    int i,j,k,l;
@@ -300,17 +302,16 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
       bf = allocate_2d_array_f(nx,ny);
       // set the values so that we can re-use them
 
-      // simple: constant thickness, vertically
-      if (FALSE) {
+      if (do_trans) {
+         // simple: constant thickness, vertically
          for (i=0; i<nx; i++) {
             for (j=0; j<ny; j++) {
-               bf[i][j] = hf[i][j] - depth;
+               bf[i][j] = -hf[i][j];
             }
          }
-      }
 
-      // complex: never allow thickness to be less than "depth"
-      if (TRUE) {
+      } else {
+         // complex: never allow thickness to be less than "depth"
          for (i=0; i<nx; i++) {
             for (j=0; j<ny; j++) {
                bf[i][j] = find_optimum_offset_z(i,j,hf,nx,ny,hscale,depth);
