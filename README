@@ -265,7 +265,7 @@ Renderman (.rib) - A Renderman-compliant polygon definition, used by
   2009-04-22  v1.0    rewrote rockcreate with new features, added rockinfo,
                       rocksplit, and rockdice
   2011-08-01  v1.1    added rockpng, to convert 16-bit PNGs to meshes
-  2014-04-06  v1.2    added rockslide, new features to rockpng
+  2014-04-06  v1.2    added rockslice, new features to rockpng
 
 -----------------------------------------------------------------------
 
@@ -320,5 +320,5 @@ http://cm.bell-labs.com/who/clarkson/
 -----------------------------------------------------------------------
 
 created 1999-03-15 by Mark Stock <mstock@umich.edu>
-document last modified 2012-10-19 by Mark Stock <mstock@umich.edu>
+document last modified 2014-04-06 by Mark Stock <mstock@umich.edu>
 
