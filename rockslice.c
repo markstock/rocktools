@@ -109,12 +109,11 @@ int main(int argc,char **argv) {
 
    /* Determine and set the output format key from the string */
    if (strncmp(output_format, "raw", 3) != 0 &&
-       strncmp(output_format, "seg", 3) != 0 &&
-       strncmp(output_format, "svg", 3) != 0) {
+       strncmp(output_format, "seg", 3) != 0) {
       fprintf(stderr,"Output filename extension is assumed to be (%s)\n",output_format);
       fprintf(stderr,"This is either not a supported output file format for rockslice, or you\n");
       fprintf(stderr,"   need to use a proper extension (standard 3-character extension for format).\n");
-      fprintf(stderr,"Supported output file formats are: .raw, .seg, and .svg\n");
+      fprintf(stderr,"Supported output file formats are: .raw and .seg\n");
       exit(0);
    }
    //sprintf(output_1,"%s%c.%s",output_root,'l',output_format);
@@ -536,8 +535,8 @@ int Usage(char progname[80],int status) {
        "                                                                           ",
        "   -r rad      set radius/width of segments on sliced plane                ",
        "                                                                           ",
-       "   -okey       specify output format, key= raw, seg, or svg                ",
-       "               default = seg;                                              ",
+       "   -okey       specify output format, key= raw or seg                      ",
+       "               default = seg (usable by stickkit)                          ",
        "                                                                           ",
        "   -help       (in place of infile) returns this help information          ",
        " ",

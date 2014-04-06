@@ -1,5 +1,5 @@
 rocktools - Tools for creating and manipulating triangular meshes
-Copyright (C) 1999-2009  Mark J. Stock
+Copyright (C) 1999-2014  Mark J. Stock
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -114,6 +114,10 @@ Rocktools, at the moment, is composed of five programs, summarized below:
    rocktrim - Split an arbitraty tri mesh along a coordinate plane.
 
    rockxray - Write a grayscale image of the shell of a tri mesh.
+
+   rockpng - generate a mesh from a heightfield image
+
+   rockslide - cut an axis-aligned 2D slice from a trimesh
 
 Some other C files support the main programs listed above. These files
 and descriptions follow:
@@ -261,6 +265,7 @@ Renderman (.rib) - A Renderman-compliant polygon definition, used by
   2009-04-22  v1.0    rewrote rockcreate with new features, added rockinfo,
                       rocksplit, and rockdice
   2011-08-01  v1.1    added rockpng, to convert 16-bit PNGs to meshes
+  2014-04-06  v1.2    added rockslide, new features to rockpng
 
 -----------------------------------------------------------------------
 

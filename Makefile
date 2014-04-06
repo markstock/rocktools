@@ -71,39 +71,30 @@ debug: all
 
 rockcreate: rockcreate.c createutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rockcreate.c createutil.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockdetail: rockdetail.c detailutil.c smoothutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -DDETAIL -o $@ rockdetail.c detailutil.c smoothutil.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockerode : rockerode.c erodeutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DERODE -DCONN -o $@ rockerode.c erodeutil.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rocksmooth : rocksmooth.c smoothutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rocksmooth.c smoothutil.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockconvert: rockconvert.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockconvert.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rocktrim: rocktrim.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rocktrim.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockinfo: rockinfo.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockinfo.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockpng: rockpng.c pngutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockpng.c pngutil.c $(CFILES) $(LIBS)
-#@echo "$(@F) made"
 
 rocksplit: rocksplit.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rocksplit.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 rockslice: rockslice.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockslice.c $(CFILES) $(LIBS)
@@ -111,7 +102,6 @@ rockslice: rockslice.c $(CFILES) $(HFILES) Makefile
 # any others that don't need connectivity or adjacent nodes
 rock% : rock%.c %util.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rock$*.c $*util.c $(CFILES) $(LIBS)
-#	@echo "$(@F) made"
 
 clean : 
 	rm -f $(EXE)
