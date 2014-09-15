@@ -153,8 +153,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       this_node = this_node->next_node;
    }
    fprintf(stderr,"\n");
-   // and, if x- and y-bounds are used, correct these numbers to either crop off
-   //    image, or to pad the image
+   // and, if x- and y-bounds are used (i.e. if xb[0] is greater than 0),
+   //    correct these numbers to either crop off image, or to pad the image
    if (xb[0] > 0.0) {
       xmin = xb[1];
       xmax = xb[2];
@@ -163,7 +163,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       ymin = yb[1];
       ymax = yb[2];
    }
-   // fprintf(stderr,"min/max image bounds are %g/%g and %g/%g\n",xmin,xmax,ymin,ymax);
+   fprintf(stderr,"min/max image bounds are %g/%g and %g/%g\n",xmin,xmax,ymin,ymax);
 
 
    // determine image bounds, etc
@@ -179,7 +179,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          ymin = 0.5*(ymax+ymin) - 0.5*xsize;
          xmin = 0.5*(xmax+xmin) - 0.5*xsize;
       } else {
-         yres = (int)(size*((ymax-ymin)/(xmax-xmin)) + border*(xmax-xmin));
+         yres = (int)(xres*(ymax-ymin + border*(xmax-xmin)) / xsize);
          ymin -= 0.5*border*(xmax-xmin);
          xmin -= 0.5*border*(xmax-xmin);
       }
@@ -191,20 +191,23 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          xmin = 0.5*(xmax+xmin) - 0.5*ysize;
          ymin = 0.5*(ymax+ymin) - 0.5*ysize;
       } else {
-         xres = (int)(size*((xmax-xmin)/(ymax-ymin)) + border*(ymax-ymin));
+         xres = (int)(yres*(xmax-xmin + border*(ymax-ymin)) / ysize);
          xmin -= 0.5*border*(ymax-ymin);
          ymin -= 0.5*border*(ymax-ymin);
       }
       dd = ysize/yres;
    }
-   //fprintf(stderr,"Final image to be %d x %d\n",xres,yres);
+   fprintf(stderr,"Final image to be %d x %d\n",xres,yres);
    //fprintf(stderr,"  new xmin,ymin %g %g, dd %g\n",xmin,ymin,dd);
 
    // find out how many layers we need (thick==-1 if not entered)
    if (thick > 0.0) {
-      if (hiq) num_layers = (int)(3.3*thick/dd);
-      else num_layers = (int)(2*thick/dd);
+      float fthick;
+      if (hiq) fthick = 3.3*thick/dd;
+      else fthick = 2.0*thick/dd;
+      num_layers = (int)fthick;
       if (num_layers < 1) num_layers = 1;
+      fprintf(stderr,"Using %d layers (%g raw thickness)\n",num_layers,fthick); fflush(stderr);
    } else {
       num_layers = 1;
       thick = 0.0;
@@ -213,7 +216,6 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       num_layers = 1;
       thick = 0.0;
    }
-   fprintf(stderr,"Using %d layers\n",num_layers); fflush(stderr);
 
 
    // allocate the array(s)
