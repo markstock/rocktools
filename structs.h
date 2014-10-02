@@ -42,6 +42,8 @@
 /*#define MAX_CONN 20*/
 #define MAX_ADJ 10
 
+#define M_PI           3.14159265358979323846
+
 /*
  * A basic 3D vector
  */

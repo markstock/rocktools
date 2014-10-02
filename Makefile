@@ -1,5 +1,7 @@
 # Makefile for rocktools, a 3-D triangle mesh manipulation toolkit
 
+#DEBUG=1
+
 # user-customizable (only used when "make install")
 #BIN = /usr/local/bin
 BIN = ~/bin
@@ -39,6 +41,7 @@ EXE = rockdetail\
 	rocksplit\
 	rockpng\
 	rockslice\
+	rockbob\
 	rockinfo
 
 all : $(EXE)
@@ -58,6 +61,7 @@ install : $(EXE)
 	cp rockpng $(BIN)/rockpng
 	cp rockdice $(BIN)/rockdice
 	cp rockslice $(BIN)/rockslice
+	cp rockbob $(BIN)/rockbob
 
 # alternatively, make vort3d with the debug flags turned on
 debug: CFLAGS = -pg -ggdb -Wall -ftrapv
@@ -98,6 +102,9 @@ rocksplit: rocksplit.c $(CFILES) $(HFILES) Makefile
 
 rockslice: rockslice.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockslice.c $(CFILES) $(LIBS)
+
+rockbob: rockbob.c bobutil.c $(CFILES) $(HFILES) Makefile
+	$(CC) $(CFLAGS) -std=c99 -o $@ rockbob.c bobutil.c $(CFILES) $(LIBS)
 
 # any others that don't need connectivity or adjacent nodes
 rock% : rock%.c %util.c $(CFILES) $(HFILES) Makefile
