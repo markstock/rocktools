@@ -973,7 +973,6 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
 
    int h,i,j,k;
    int adj_side = -1;
-   int far_corner;
    int num_new_tri;
    int tri_cnt = 0;
    int node_cnt = 0;
@@ -1043,16 +1042,6 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
                   // fprintf(stderr,"     corresponding to splittable tri %d\n",this_tri->adjacent[i]->index); fflush(stderr);
 
                   // there is an adjacent triangle that can be split
-                  // find the index of the adjacent tri's farthest node
-                  for (h=0; h<3; h++) {
-                     if (this_tri->node[i] == this_tri->adjacent[i]->node[h]) {
-                        far_corner = mod(h+1,3);
-                        break;
-                     }
-                  }
-                  //new_node[i] = create_midpoint_5(depth,this_tri->node[i],
-                  //                 this_tri->node[j], this_tri->node[k],
-                  //                 this_tri->adjacent[i]->node[far_corner]);
                   if (use_spline)
                      new_node[i] = create_midpoint_spline(this_tri->node[i],this_tri->node[j],&node_cnt);
                   else
@@ -1541,17 +1530,6 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
                //fprintf(stderr,"    corresponding to splittable tri %d\n",this_tri->adjacent[i]->index); fflush(stderr);
 
                // there is an adjacent triangle that can be split
-               // find the index of the adjacent tri's farthest node
-               for (h=0; h<3; h++) {
-                  if (this_tri->node[i] == this_tri->adjacent[i]->node[h]) {
-                     far_corner = mod(h+1,3);
-                     break;
-                  }
-               }
-               //new_node[i] = create_midpoint_5(depth,this_tri->node[i],
-               //                                this_tri->node[j],
-               //                                this_tri->node[k],
-               //                                this_tri->adjacent[i]->node[far_corner]);
                // all nodes get perturbed LATER
                if (use_spline)
                   new_node[i] = create_midpoint_spline(this_tri->node[i],this_tri->node[j],&node_cnt);
@@ -1580,17 +1558,6 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
                // So, split that edge normally, anyways! AND tell the
                //    adjacent tri that we split
 
-               // find the index of the adjacent tri's farthest node
-               for (h=0; h<3; h++) {
-                  if (this_tri->node[i] == this_tri->adjacent[i]->node[h]) {
-                     far_corner = mod(h+1,3);
-                     break;
-                  }
-               }
-               //new_node[i] = create_midpoint_5(depth,this_tri->node[i],
-               //                                this_tri->node[j],
-               //                                this_tri->node[k],
-               //                                this_tri->adjacent[i]->node[far_corner]);
                // all nodes get perturbed LATER
                if (use_spline)
                   new_node[i] = create_midpoint_spline(this_tri->node[i],this_tri->node[j],&node_cnt);
@@ -1964,7 +1931,8 @@ int find_adjacent_child(tri_pointer starting, tri_pointer base, node_ptr node1, 
    // if a match is found, share adjacent triangle information
    if (found_match) {
 
-      /* fprintf(stderr,"   found match, side %d of base and side %d of tri %d\n",base_side,adj_side,match_tri);
+      if (FALSE) {
+      fprintf(stderr,"   found match, side %d of base and side %d of tri %d\n",base_side,adj_side,match_tri);
       fprintf(stderr,"      bewteen %g %g %g and %g %g %g\n",
                      node1->loc.x,node1->loc.y,node1->loc.z,
                      node2->loc.x,node2->loc.y,node2->loc.z);
@@ -1975,7 +1943,8 @@ int find_adjacent_child(tri_pointer starting, tri_pointer base, node_ptr node1, 
       fprintf(stderr,"      matched tri is %g %g to %g %g to %g %g\n",
                      matched_tri->node[0]->loc.x,matched_tri->node[0]->loc.y,
                      matched_tri->node[1]->loc.x,matched_tri->node[1]->loc.y,
-                     matched_tri->node[2]->loc.x,matched_tri->node[2]->loc.y); */
+                     matched_tri->node[2]->loc.x,matched_tri->node[2]->loc.y);
+      }
 
       base->adjacent[base_side] = matched_tri;
       matched_tri->adjacent[adj_side] = base;
@@ -1991,7 +1960,6 @@ int find_adjacent_child(tri_pointer starting, tri_pointer base, node_ptr node1, 
  */
 node_ptr create_midpoint(node_ptr node1, node_ptr node2) {
 
-   int i_dummy;
    node_ptr new_node = (NODE *)malloc(sizeof(NODE));
 
    /* new node is the midpoint of the two existing nodes */
@@ -2002,9 +1970,9 @@ node_ptr create_midpoint(node_ptr node1, node_ptr node2) {
    /* grab 3 random numbers, the same as create_midpoint_2 and _3;
     * doing this allows the same random seed to produce similarly-
     * shaped surfaces */
-   i_dummy = rand();
-   i_dummy = rand();
-   i_dummy = rand();
+   (void) rand();
+   (void) rand();
+   (void) rand();
 
 #ifdef CONN
    new_node->num_conn = 0;
@@ -2370,7 +2338,7 @@ void perturb_node_5 (VEC *loc, int depth, VEC r3) {
 node_ptr create_midpoint_spline (node_ptr n1, node_ptr n2, int *node_cnt) {
 
    int i,j,corner;
-   double dl[3],len,norm1[3],norm2[3],fp[2][3][3],p1[3],p2[3],a[4];
+   double dl[3],norm1[3],norm2[3],fp[2][3][3],p1[3],p2[3],a[4];//,len;
    node_ptr new_node = (NODE *)malloc(sizeof(NODE));
    tri_pointer this_tri = NULL;
 
@@ -2379,7 +2347,7 @@ node_ptr create_midpoint_spline (node_ptr n1, node_ptr n2, int *node_cnt) {
    dl[0] = n2->loc.x - n1->loc.x;
    dl[1] = n2->loc.y - n1->loc.y;
    dl[2] = n2->loc.z - n1->loc.z;
-   len = sqrt(dl[0]*dl[0] + dl[1]*dl[1] + dl[2]*dl[2]);
+   //len = sqrt(dl[0]*dl[0] + dl[1]*dl[1] + dl[2]*dl[2]);
 
    // find the normals
    this_tri = n1->conn_tri[0];

@@ -34,7 +34,6 @@
 #include "structs.h"
 
 node_ptr node_head = NULL;
-int num_tri = 0;
 
 int Usage(char[80],int);
 extern int read_files_for_nodes (int,char**);
@@ -61,10 +60,8 @@ int main(int argc,char **argv) {
    double roundness = 0.0;		// relative roundness, 1.0 = average
    char progname[80];			// name of binary executable
    char output_format[4];		// file format extension for output
-   int num_its, num_tri;
+   int num_its;
    tri_pointer tri_head = NULL;
-
-   num_tri = 0;
 
    /* Parse command-line args */
    (void) strcpy(progname,argv[0]);

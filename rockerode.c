@@ -45,7 +45,6 @@ int main(int argc,char **argv) {
    int i;
    int step = 0;
    int total_steps = 1;			/* total number of erosion steps */
-   int num_wrote = 0;			/* number of triangles written out */
    int do_erosion= 0;			/* perturb nodes to smooth shape? */
    double erosion_factor = 0.0;		/* amount of smoothing to take place */
    //double v_thresh = 1.0;		/* threshhold for common normal, convex edge */
@@ -115,7 +114,7 @@ int main(int argc,char **argv) {
 
 
    /* Write triangles to stdout */
-   num_wrote = write_output(tri_head,output_format,TRUE,argc,argv);
+   (void) write_output(tri_head,output_format,TRUE,argc,argv);
 
 
    /* Somehow, write flow data somewhere */

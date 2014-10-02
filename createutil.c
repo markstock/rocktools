@@ -107,7 +107,6 @@ int create_cubic_nodes (int num_nodes) {
 
    int i;
    int actual_nodes = 0;
-   node_ptr this;
    VEC loc;
 
    // create a field of randomly-spaced points in [-0.5:0.5]
@@ -116,7 +115,7 @@ int create_cubic_nodes (int num_nodes) {
       loc.y = rand()/(RAND_MAX+1.0) - 0.5;
       loc.z = rand()/(RAND_MAX+1.0) - 0.5;
       // add a new node, give NULL for tri pointer and bin pointer
-      this = add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
+      (void) add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
    }
 
    return actual_nodes;
@@ -131,14 +130,13 @@ int create_gaussian_nodes (int num_nodes) {
 
    int i;
    int actual_nodes = 0;
-   node_ptr this;
    VEC loc;
 
    // create a field of gaussian-randomly-spaced points around the origin
    for (i=0; i<num_nodes; i++) {
       loc = get_random_gaussian_vector(1.0);
       // add a new node, give NULL for tri pointer and bin pointer
-      this = add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
+      (void) add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
    }
 
    return actual_nodes;
@@ -154,7 +152,6 @@ int create_random_walk_nodes (int num_nodes) {
    int i;
    int actual_nodes = 0;
    double lengthper;
-   node_ptr this;
    VEC loc;
 
    // set length jump (diffusion dictates a length scale of time^0.5)
@@ -166,14 +163,14 @@ int create_random_walk_nodes (int num_nodes) {
       loc.y = 0.0;
       loc.z = 0.0;
       // add a new node, give NULL for tri pointer and bin pointer
-      this = add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
+      (void) add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
    }
 
    /* create a field of randomly-spaced points in [0:1][0:1][0:1] */
    for (i=1; i<num_nodes; i++) {
       loc = plus(loc,get_spherical_random_vector(lengthper));
       // add a new node, give NULL for tri pointer and bin pointer
-      this = add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
+      (void) add_to_nodes_list(NULL,&actual_nodes,-1,&loc,NULL);
    }
 
    return actual_nodes;

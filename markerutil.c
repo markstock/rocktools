@@ -171,7 +171,7 @@ int write_rectangle(VEC loc, VEC normal, VEC lx, double size,
    //int num = 0;
    //int i;
    double dist;
-   VEC thissize,delta,ly,up;
+   VEC thissize,delta,ly;//,up;
    VEC node[8];
 
    // normalize the basis vectors
@@ -225,9 +225,9 @@ int write_rectangle(VEC loc, VEC normal, VEC lx, double size,
       // in this incarnation, randomize it more if the normal is nearly +-z
 
       // set the up vector
-      up.x = 0.;
-      up.y = 0.;
-      up.z = 1.;
+      //up.x = 0.;
+      //up.y = 0.;
+      //up.z = 1.;
 
       // find the magnitude of "z"-ness
       //dotp = dot(up, normal);

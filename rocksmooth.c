@@ -48,8 +48,6 @@ extern int grow_surface_along_normal(tri_pointer,double);
 int main(int argc,char **argv) {
 
    int i;
-   int num_wrote = 0;			/* number of triangles written out */
-
    int do_laplace = FALSE;		/* perturb nodes to smooth shape? */
    int laplace_factor = 1;		/* amount of smoothing to take place */
 
@@ -151,7 +149,7 @@ int main(int argc,char **argv) {
    if (do_normals) (void) compute_normals_3(tri_head,3,allow_sharp_edges,edge_thresh);
 
    // Write triangles to stdout
-   num_wrote = write_output(tri_head,output_format,TRUE,argc,argv);
+   (void) write_output(tri_head,output_format,TRUE,argc,argv);
 
    fprintf(stderr,"Done.\n");
    exit(0);
