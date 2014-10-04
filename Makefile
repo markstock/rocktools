@@ -10,7 +10,7 @@ BIN = ~/bin
 CC=gcc
 LINKER=gcc
 
-CFLAGS=-Wall
+CFLAGS=-Wall -std=c99
 ifdef DEBUG
   CFLAGS+=-g -p -ggdb -fbounds-check
 else
@@ -102,9 +102,6 @@ rocksplit: rocksplit.c $(CFILES) $(HFILES) Makefile
 
 rockslice: rockslice.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ rockslice.c $(CFILES) $(LIBS)
-
-rockbob: rockbob.c bobutil.c $(CFILES) $(HFILES) Makefile
-	$(CC) $(CFLAGS) -std=c99 -o $@ rockbob.c bobutil.c $(CFILES) $(LIBS)
 
 # any others that don't need connectivity or adjacent nodes
 rock% : rock%.c %util.c $(CFILES) $(HFILES) Makefile

@@ -6,7 +6,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-13  Mark J. Stock
+ * Copyright (C) 2004-14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,6 +37,9 @@
 #define MODULE_ROCKXRAY
 #include "structs.h"
 
+/* generate depth-of-field using a slower Gaussian splatting scheme */
+//#define USE_GAUSSIAN
+
 png_byte** allocate_2d_array_pb(int,int,int);
 int write_png_image(png_byte**,int,int,int);
 
@@ -57,35 +60,18 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    int write_pgm;			// write a PGM file
    int write_png;			// write a PNG file
    //int write_hibit = TRUE;		// write a 16-bit image (instead of 8)
-   int i,j,k,cnt;
+   int cnt;
    int xres,yres;			// the actual image size
-   int subdivisions;
    float **a;				// the array to print
    png_byte **img = NULL;		// the png array
    double dtemp,xsize,ysize,dd;
    double xmin,xmax,ymin,ymax;		// bounds of the image
    double zmin,zmax;			// bounds in the image direction
-   double xpos,ypos,factor,rfactor;
-   double zpos;
-   double proj_area,area,sidelen;
-   int A,B,C,D;
-   int xloc,yloc;			// the actual image size
-   int printval;
-   float maxval = 0.;
-   VEC vx,vy,ec;			// image basis vectors
+   VEC vx,vy;				// image basis vectors
    int num_layers;			// number of subdivisions in normal direction
-   double norm_disp;			// displacement of given layer in normal dir.
-   VEC trinorm;				// triangle normal vector
    tri_pointer this_tri;
-   node_ptr this_node,n0,n1,n2;
-//#define USE_GAUSSIAN
-#ifdef USE_GAUSSIAN
-   int ix,iy,sx,sy,ex,ey;
-   double dx,dy,dr,drr,rad,cnst;
-#endif
+   node_ptr this_node;
 
-   double pos,maxpos,minpos;
-   //double min_area = 9.9e+9;
    int debug_write = FALSE;
    FILE *debug_out;
 
@@ -132,24 +118,26 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    zmin = 9.9e+9;
    zmax = -9.9e+9;
    this_node = node_head;
-   i = 0;
+   cnt = 0;
    while (this_node) {
       // fprintf(stderr,"this node at %g %g %g, projection is %g %g\n",this_node->loc.x,this_node->loc.y,this_node->loc.z,dot(vx,this_node->loc),dot(vy,this_node->loc));
       // project this node to image plane
       dtemp = dot(vx,this_node->loc);
       if (dtemp<xmin) xmin = dtemp;
       if (dtemp>xmax) xmax = dtemp;
+
       dtemp = dot(vy,this_node->loc);
       if (dtemp<ymin) ymin = dtemp;
       if (dtemp>ymax) ymax = dtemp;
+
       dtemp = dot(vz,this_node->loc);
       if (dtemp<zmin) zmin = dtemp;
       if (dtemp>zmax) zmax = dtemp;
-      if (i/DOTPER == (i+DPMO)/DOTPER) {
+
+      if (++cnt%DOTPER == 1) {
          fprintf(stderr,".");
          fflush(stderr);
       }
-      i++;
       this_node = this_node->next_node;
    }
    fprintf(stderr,"\n");
@@ -228,28 +216,32 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    }
 
    // zero out the array
-   for (i=0; i<xres; i++) for (j=0; j<yres; j++) a[i][j] = 0.0;
+   for (int i=0; i<xres; i++) for (int j=0; j<yres; j++) a[i][j] = 0.0;
 
 
    // then, loop through all elements, writing to the image
    fprintf(stderr,"Writing data to image plane"); fflush(stderr);
 
+
+   // begin parallel section
+   // private [a lot]
+
    cnt = 0;
    this_tri = tri_head;
    while (this_tri) {
 
-      n0 = this_tri->node[0];
-      n1 = this_tri->node[1];
-      n2 = this_tri->node[2];
+      const node_ptr n0 = this_tri->node[0];
+      const node_ptr n1 = this_tri->node[1];
+      const node_ptr n2 = this_tri->node[2];
 
       // first, see if the triangle is anywhere near the actual view window
 
       // check x-direction first
-      minpos = 9.9e+9;
-      maxpos = -9.9e+9;
-      for (i=0; i<3; i++) {
+      double minpos = 9.9e+9;
+      double maxpos = -9.9e+9;
+      for (int i=0; i<3; i++) {
          // find location in image coordinates
-         pos = dot(vx,this_tri->node[i]->loc) - xmin;
+         const double pos = dot(vx,this_tri->node[i]->loc) - xmin;
          if (pos > maxpos) maxpos = pos;
          if (pos < minpos) minpos = pos;
       }
@@ -264,9 +256,9 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       // then check y-direction
       minpos = 9.9e+9;
       maxpos = -9.9e+9;
-      for (i=0; i<3; i++) {
+      for (int i=0; i<3; i++) {
          // find location in image coordinates
-         pos = dot(vy,this_tri->node[i]->loc) - ymin;
+         const double pos = dot(vy,this_tri->node[i]->loc) - ymin;
          if (pos > maxpos) maxpos = pos;
          if (pos < minpos) minpos = pos;
       }
@@ -278,14 +270,18 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          continue;
       }
 
+      // use x-array coordinates to determine which lock(s) to get;
+      //   because the x coord is the slower-varying index in memory
+
       // break the tri down into sub-triangles in the triangle plane
-      area = find_area(this_tri);
+      const double area = find_area(this_tri);
       if (isnan(area)) {
          fprintf(stderr,"\nfound tri with nan area, skipping");
          this_tri = this_tri->next_tri;
          continue;
       }
-      sidelen = sqrt(area);
+      double sidelen = sqrt(area);
+      if (is_solid) sidelen *= 3.;
 
       //if (area < min_area) {
          //fprintf(stderr,"\nmin area %g",area);
@@ -293,7 +289,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       //}
 
       // new method:
-      if (is_solid) sidelen *= 3.;
+      int subdivisions;
       if (hiq) subdivisions = (int)(4.0*sidelen/dd);
       else subdivisions = (int)(2.5*sidelen/dd);
       if (subdivisions < 1) subdivisions = 1;
@@ -305,7 +301,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       // now, subdivide in the tri-normal direction to simulate the
       //    thickness of the triangular prism
-      trinorm = find_normal(n0->loc,n1->loc,n2->loc);
+      VEC trinorm = find_normal(n0->loc,n1->loc,n2->loc);
       // scale the normal vector to half the thickness
       if (!is_solid) { 
          trinorm.x *= 0.5*thick;
@@ -314,13 +310,13 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
 
       // reset D to be 3*subdivisions
-      D = 3*subdivisions;
-      factor = (1.0e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
+      const int D = 3*subdivisions;
+      double factor = (1.0e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
       // fprintf(stderr,"this tri is at %g %g %g, %g %g %g, %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,n1->loc.x,n1->loc.y,n1->loc.z,n2->loc.x,n2->loc.y,n2->loc.z);
 
       // for is_solid, determine which way the triangle is facing
       if (is_solid) { 
-         proj_area = area*dot(trinorm,vz);
+         const double proj_area = area*dot(trinorm,vz);
          factor = (1.e+5)*proj_area/(double)(subdivisions*subdivisions)/(dd*dd);
          // if (dot(trinorm,vz) > 0.) factor = factor*-1.0;
       }
@@ -332,14 +328,16 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
 
       // put the value on the grid by subdivision
-      for (k=0; k<num_layers; k++) {
+      for (int k=0; k<num_layers; k++) {
 
-      norm_disp = (double)(2*k+1)/(double)(num_layers) - 1.0;
+      // displacement of given layer in normal dir.
+      const double norm_disp = (double)(2*k+1)/(double)(num_layers) - 1.0;
 
-      for (i=0; i<subdivisions; i++) {
+      for (int i=0; i<subdivisions; i++) {
 
-         for (j=0; j<(2*i+1); j++) {
+         for (int j=0; j<(2*i+1); j++) {
 
+            int A,B,C;
             if (j%2 == 0) {
                A = 3*(subdivisions-i)-2;
                B = (i-j/2)*3+1;
@@ -349,6 +347,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
                B = (i-(j+1)/2)*3+2;
                C = D-A-B;
             }
+            VEC ec;
             ec.x = (A*n0->loc.x+B*n1->loc.x+C*n2->loc.x)/(double)(D);
             ec.y = (A*n0->loc.y+B*n1->loc.y+C*n2->loc.y)/(double)(D);
             ec.z = (A*n0->loc.z+B*n1->loc.z+C*n2->loc.z)/(double)(D);
@@ -360,34 +359,34 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             ec.z += trinorm.z*norm_disp;
 
             // find location in image coordinates
-            xpos = dot(vx,ec) - xmin;
-            ypos = dot(vy,ec) - ymin;
+            double xpos = dot(vx,ec) - xmin;
+            double ypos = dot(vy,ec) - ymin;
+            const double zpos = dot(vz,ec) - zmin;
 
 #ifdef USE_GAUSSIAN
             // circle of confusion radius in image units (sigma)
-            zpos = dot(vz,ec) - zmin;
-            rad = fabs(zpos-0.45) + dd;
-            cnst = 1./pow(rad,2);
+            const double rad = fabs(zpos-0.45) + dd;
+            const double cnst = 1./pow(rad,2);
             //fprintf(stderr,"%g %g %g  %g\n",xpos,ypos,zpos,rad);
             if (rad < 0.) {
                // change to 5., run at 10x res to make smooth dots
             } else if (rad < 0.03) {
                // one sample per pixel
-               sx = (int)((xpos-3.*rad)/dd);
+               int sx = (int)((xpos-3.*rad)/dd);
                if (sx<0) sx=0;
-               ex = (int)((xpos+3.*rad)/dd);
+               int ex = (int)((xpos+3.*rad)/dd);
                if (ex>=xres) ex=xres-1;
-               sy = (int)((ypos-3.*rad)/dd);
+               int sy = (int)((ypos-3.*rad)/dd);
                if (sy<0) sy=0;
-               ey = (int)((ypos+3.*rad)/dd);
+               int ey = (int)((ypos+3.*rad)/dd);
                if (ey>=yres) ey=yres-1;
                //fprintf(stderr,"%d:%d %d:%d  %g %g %g  %g\n",sx,ex,sy,ey,xpos,ypos,zpos,rad);
-               for (ix=sx; ix<ex; ix++) {
-                  dx = xpos - ix*dd;	// distance in image units
-                  drr = pow(dx,2);
-                  for (iy=sy; iy<ey; iy++) {
-                     dy = ypos - iy*dd;
-                     dr = drr + pow(dy,2);
+               for (int ix=sx; ix<ex; ix++) {
+                  const double dx = xpos - ix*dd;	// distance in image units
+                  const double drr = pow(dx,2);
+                  for (int iy=sy; iy<ey; iy++) {
+                     const double dy = ypos - iy*dd;
+                     const double dr = drr + pow(dy,2);
                      //fprintf(stderr,"  %d %d  %g %g  %g\n",ix,iy,dx,dy,dr);
                      a[ix][iy] += factor*cnst*exp(-0.5*dr*cnst);
                   }
@@ -399,8 +398,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 #else
 
             // find lower-left pixel coordinate (be able to accept negative quantities)
-            xloc = (int)(floor(xpos/dd));
-            yloc = (int)(floor(ypos/dd));
+            const int xloc = (int)(floor(xpos/dd));
+            const int yloc = (int)(floor(ypos/dd));
             // fprintf(stderr,"   which is %g %g, cell %d %d\n",xpos,ypos,xloc,yloc);
 
             // reset xpos, ypos as local cell coordinates
@@ -409,10 +408,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             // if (xpos < 0 || ypos < 0)
                // fprintf(stderr,"   subcell coords %g %g, weight %g\n",xpos,ypos,factor);
 
-            // and find the elevation, in image coords
-            zpos = dot(vz,ec) - zmin;
-
             // finally, set the density of this point
+            double rfactor;
             if (is_solid) {
                //if (zpos < 0. && is_solid) fprintf(stderr,"\nERROR, zpos %g",zpos);
                rfactor = factor*zpos;
@@ -453,11 +450,11 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
       }
 
-      if (cnt/DOTPER == (cnt+DPMO)/DOTPER) {
+      if (++cnt%DOTPER == 1) {
          fprintf(stderr,".");
          fflush(stderr);
       }
-      cnt++;
+
       this_tri = this_tri->next_tri;
    }
    fprintf(stderr,"\n");
@@ -467,13 +464,14 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
    // finally, print the image
 
+   float maxval = 0.;
    if (write_pgm) {
 
    fprintf(stderr,"Writing PGM image"); fflush(stderr);
    // gamma-correct and check for peak value
-   for (j=yres-1; j>-1; j--) {
-      for (i=0; i<xres; i++) {
-         // printval = (int)(a[i][j]);
+   for (int j=yres-1; j>-1; j--) {
+      for (int i=0; i<xres; i++) {
+         // int printval = (int)(a[i][j]);
          // if (isnan(a[i][j])) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
          // if (a[i][j]<0) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
          // this is gamma correction, leave it in, it helps lower-res images
@@ -494,37 +492,33 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
    // scale all values
    if (write_hibit) {
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
             a[i][j] *= 65536.0/maxval;
-            // if (printval > maxval) maxval = printval;
          }
       }
       // write header
       fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,65535);
       // write data
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
-            // printval = (unsigned short)(a[i][j]);
-            printval = (int)(a[i][j]);
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
+            int printval = (int)(a[i][j]);
             if (printval > 65535) printval = 65535;
             fprintf(stdout,"%d\n",printval);
          }
       }
    } else {
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
             a[i][j] *= 256.0/maxval;
-            // if (printval > maxval) maxval = printval;
          }
       }
       // write header
       fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,255);
       // write data
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
-            // printval = (unsigned short)(a[i][j]);
-            printval = (int)(a[i][j]);
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
+            int printval = (int)(a[i][j]);
             if (printval > 255) printval = 255;
             fprintf(stdout,"%d\n",printval);
          }
@@ -535,8 +529,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
    fprintf(stderr,"Writing PNG image"); fflush(stderr);
    // gamma-correct and check for peak value
-   for (j=yres-1; j>-1; j--) {
-      for (i=0; i<xres; i++) {
+   for (int j=yres-1; j>-1; j--) {
+      for (int i=0; i<xres; i++) {
          a[i][j] = exp(0.5*log(a[i][j]));
          if (a[i][j] > maxval) maxval = a[i][j];
       }
@@ -551,9 +545,9 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
    // scale all values
    if (write_hibit) {
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
-            printval = (int)(a[i][j]*65536.0/maxval);
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
+            int printval = (int)(a[i][j]*65536.0/maxval);
             if (printval<0) printval = 0;
             if (printval>65535) printval = 65535;
             img[yres-1-j][2*i] = (png_byte)(printval/256);
@@ -562,9 +556,9 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
       write_png_image(img,yres,xres,16);
    } else {
-      for (j=yres-1; j>-1; j--) {
-         for (i=0; i<xres; i++) {
-            printval = (int)(a[i][j]*256.0/maxval);
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
+            int printval = (int)(a[i][j]*256.0/maxval);
             if (printval<0) printval = 0;
             if (printval>255) printval = 255;
             img[yres-1-j][i] = (png_byte)printval;
