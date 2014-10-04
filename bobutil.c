@@ -415,11 +415,11 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
       if (dtemp<zmin) zmin = dtemp;
       if (dtemp>zmax) zmax = dtemp;
 
-      if (cnt/DOTPER == (cnt+DPMO)/DOTPER) {
+      if (++cnt%DOTPER == 1) {
          fprintf(stderr,".");
          fflush(stderr);
       }
-      cnt++;
+
       this_node = this_node->next_node;
    }
    fprintf(stderr,"\n");
