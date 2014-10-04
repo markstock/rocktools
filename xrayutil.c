@@ -31,6 +31,9 @@
 #include <math.h>
 #include "png.h"
 
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
 
 /* define a C preprocessor variable so that when structs.h is included,
  * it will contain extra information used only by this program */
@@ -222,13 +225,69 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    // then, loop through all elements, writing to the image
    fprintf(stderr,"Writing data to image plane"); fflush(stderr);
 
+#ifdef _OPENMP
+   // set parallelism
+   // how many threads do we need? 2x as many cores, but limit by image size
+   int num_threads = (1+xres/1024)*(1+yres/1024);
+   if (num_threads > omp_get_max_threads()) num_threads = omp_get_max_threads();
+   if (num_threads > 2*omp_get_num_procs()) num_threads = 2*omp_get_num_procs();
+   if (16*num_threads > xres) num_threads = xres/16;
+   if (num_threads < 1) num_threads = 1;
+   omp_set_num_threads(num_threads);
+   fprintf(stderr," using %d threads",num_threads); fflush(stderr);
 
-   // begin parallel section
-   // private [a lot]
+   // how many memory blocks do we need?
+   int num_locks = 8*num_threads;
+   if (num_threads == 1) num_locks = 1;
 
+   // initialize image memory locks
+   omp_lock_t memlock[num_locks];
+   int lock_min[num_locks];
+   int lock_max[num_locks];
+   for (int i=0; i<num_locks; i++) {
+      omp_init_lock(&memlock[i]);
+      lock_min[i] = (i*xres)/num_locks;
+      lock_max[i] = ((i+1)*xres)/num_locks - 1;
+      //fprintf(stderr,"\n lock %d from %d to %d",i,lock_min[i],lock_max[i]); fflush(stderr);
+   }
+
+   // finally, set equal-spaced tri_head for each thread
+   // we will not need to do this if OpenMP could do task-parallel (it can)
+   tri_pointer tri_heads[num_threads+1];
+   // first loop: just count
    cnt = 0;
    this_tri = tri_head;
    while (this_tri) {
+      this_tri = this_tri->next_tri;
+      cnt++;
+   }
+   int tris_per_thread = cnt/num_threads;
+   // second loop: set pointers
+   cnt = 0;
+   this_tri = tri_head;
+   while (this_tri) {
+      if (++cnt%tris_per_thread == 1) {
+         //fprintf(stderr,"\n mark tri %d number %d",cnt,cnt/tris_per_thread); fflush(stderr);
+         tri_heads[cnt/tris_per_thread] = this_tri;
+      }
+      this_tri = this_tri->next_tri;
+   }
+   tri_heads[num_threads] = NULL;
+#endif
+
+   // begin parallel section
+   // how do we have each thread march through the same linked list?
+   // i.e. each thread grabs the next triangle and processes it
+#pragma omp parallel private(cnt,this_tri)
+{
+   cnt = 0;
+#ifdef _OPENMP
+   this_tri = tri_heads[omp_get_thread_num()];
+   while (this_tri != tri_heads[omp_get_thread_num()+1]) {
+#else
+   this_tri = tri_head;
+   while (this_tri) {
+#endif
 
       const node_ptr n0 = this_tri->node[0];
       const node_ptr n1 = this_tri->node[1];
@@ -245,7 +304,6 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          if (pos > maxpos) maxpos = pos;
          if (pos < minpos) minpos = pos;
       }
-      //if (maxpos+thick < -0.1*xsize || minpos-thick > 1.1*xsize) {
       if ((int)(floor((maxpos+thick)/dd)) < -1 ||
           (int)(floor((minpos-thick)/dd)) > xres+1) {
          // skip this tri
@@ -262,7 +320,6 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          if (pos > maxpos) maxpos = pos;
          if (pos < minpos) minpos = pos;
       }
-      //if (maxpos+thick < -0.1*ysize || minpos-thick > 1.1*ysize) {
       if ((int)(floor((maxpos+thick)/dd)) < -1 ||
           (int)(floor((minpos-thick)/dd)) > yres+1) {
          // skip this tri
@@ -272,6 +329,21 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       // use x-array coordinates to determine which lock(s) to get;
       //   because the x coord is the slower-varying index in memory
+      // so, what?
+#ifdef _OPENMP
+      int lowbound = floor((maxpos+thick)/dd) - 1;
+      int highbound = floor((minpos-thick)/dd) + 1;
+      // loop through locks, grabbing the right ones
+      for (int i=0; i<num_locks; i++ ) {
+         if (lowbound > lock_max[i] || highbound < lock_min[i]) {
+            // this tri does not use these pixel rows, skip
+         } else {
+            // this tri will write to pixels in this band
+            omp_set_lock(&memlock[i]);
+         }
+      }
+#endif
+
 
       // break the tri down into sub-triangles in the triangle plane
       const double area = find_area(this_tri);
@@ -395,7 +467,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             } else {
                // nothing (too diffuse)
             }
-#else
+#else  // not Gaussian
 
             // find lower-left pixel coordinate (be able to accept negative quantities)
             const int xloc = (int)(floor(xpos/dd));
@@ -436,7 +508,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
                if (yloc > -2 && yloc+1 < yres)
                   a[xloc+1][yloc+1] += rfactor*(xpos)    *(ypos);
             }
-#endif
+
+#endif  // not Gaussian
             /*
             if (xloc > -2 && xloc+1 < xres && yloc > -2 && yloc+1 < yres) {
             if (isnan(a[xloc+1][yloc+1])) {
@@ -450,6 +523,13 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
       }
 
+#ifdef _OPENMP
+      // loop through locks, releasing them all
+      for (int i=0; i<num_locks; i++ ) {
+         omp_unset_lock(&memlock[i]);
+      }
+#endif
+
       if (++cnt%DOTPER == 1) {
          fprintf(stderr,".");
          fflush(stderr);
@@ -457,6 +537,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       this_tri = this_tri->next_tri;
    }
+} // end omp section
    fprintf(stderr,"\n");
 
    if (debug_write)

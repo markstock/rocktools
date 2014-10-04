@@ -10,7 +10,7 @@ BIN = ~/bin
 CC=gcc
 LINKER=gcc
 
-CFLAGS=-Wall -std=c99
+CFLAGS=-Wall -std=c99 -fopenmp
 ifdef DEBUG
   CFLAGS+=-g -p -ggdb -fbounds-check
 else
