@@ -57,7 +57,7 @@ int write_png_image(png_byte**,int,int,int);
  */
 int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       double thick, int square, double border, int hiq, double peak_crop,
-      int write_hibit, int is_solid, char* output_format) {
+      int write_hibit, int is_solid, char* output_format, int force_num_threads) {
 
    // int is_solid = TRUE;		// xray interior, not just boundary
    int write_pgm;			// write a PGM file
@@ -229,10 +229,11 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    // set parallelism
    // how many threads do we need? 2x as many cores, but limit by image size
    int num_threads = (1+xres/1024)*(1+yres/1024);
-   if (num_threads > omp_get_max_threads()) num_threads = omp_get_max_threads();
    if (num_threads > 2*omp_get_num_procs()) num_threads = 2*omp_get_num_procs();
    if (16*num_threads > xres) num_threads = xres/16;
+   if (force_num_threads > 0) num_threads = force_num_threads;
    if (num_threads < 1) num_threads = 1;
+   if (num_threads > omp_get_max_threads()) num_threads = omp_get_max_threads();
    omp_set_num_threads(num_threads);
    fprintf(stderr," using %d threads",num_threads); fflush(stderr);
 

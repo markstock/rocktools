@@ -35,12 +35,13 @@
 #include "structs.h"
 
 node_ptr node_head = NULL;
-extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,int,int,char*);
+extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,int,int,char*,int);
 int Usage(char[80],int);
 
 int main(int argc,char **argv) {
 
    int i,do_volume,max_size,force_square,hiquality,write_hibit;
+   int force_num_threads = -1;
    char infile[80];				/* name of input file */
    char progname[80];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
@@ -110,6 +111,8 @@ int main(int argc,char **argv) {
          write_hibit = TRUE;
       } else if (strncmp(argv[i], "-o", 2) == 0) {
          strncpy(output_format,argv[i]+2,4);
+      } else if (strncmp(argv[i], "-n", 2) == 0) {
+         force_num_threads = atoi(argv[++i]);
       } else
          (void) Usage(progname,0);
    }
@@ -124,7 +127,7 @@ int main(int argc,char **argv) {
    /* Write the image to stdout */
    (void) write_xray(tri_head,viewp,xb,yb,max_size,thickness,force_square,
                      border,hiquality,peak_crop,write_hibit,do_volume,
-                     output_format);
+                     output_format,force_num_threads);
 
    fprintf(stderr,"Done.\n");
    exit(0);
@@ -175,6 +178,8 @@ int Usage(char progname[80],int status) {
        "   -r [res]    pixel resolution of the long edge of the image, default=512 ",
        "                                                                           ",
        "   -okey       specify output format, key= pgm, png, default = png         ",
+       "                                                                           ",
+       "   -n num      force this number of threads                                ",
        "                                                                           ",
        "   -help       returns this help information                               ",
        " ",
