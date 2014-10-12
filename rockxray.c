@@ -35,7 +35,7 @@
 #include "structs.h"
 
 node_ptr node_head = NULL;
-extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,int,int,char*,int);
+extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,char*,int);
 int Usage(char[80],int);
 
 int main(int argc,char **argv) {
@@ -48,6 +48,7 @@ int main(int argc,char **argv) {
    double thickness;				/* thickness of mesh, world coords */
    double border;				/* thickness of image border, fraction */
    double peak_crop;				/* muliplier on image value to crop peaks */
+   double gamma;				/* output image gamma value */
    double xb[3],yb[3];				/* image bounds, in world units, [t/f,min,max] */
    VEC viewp;
    tri_pointer tri_head = NULL;
@@ -62,6 +63,7 @@ int main(int argc,char **argv) {
    do_volume = FALSE;
    border = 0.1;
    peak_crop = 0.8;
+   gamma = 1.0;
    thickness = -1.0;
    xb[0] = -1;					// negative means "do not use bounds"
    xb[1] = 0;
@@ -101,6 +103,8 @@ int main(int argc,char **argv) {
          border = atof(argv[++i]);
       } else if (strncmp(argv[i], "-pc", 3) == 0) {
          peak_crop = atof(argv[++i]);
+      } else if (strncmp(argv[i], "-g", 2) == 0) {
+         gamma = atof(argv[++i]);
       } else if (strncmp(argv[i], "-t", 2) == 0) {
          thickness = atof(argv[++i]);
       } else if (strncmp(argv[i], "-r", 2) == 0) {
@@ -126,7 +130,7 @@ int main(int argc,char **argv) {
 
    /* Write the image to stdout */
    (void) write_xray(tri_head,viewp,xb,yb,max_size,thickness,force_square,
-                     border,hiquality,peak_crop,write_hibit,do_volume,
+                     border,hiquality,peak_crop,gamma,write_hibit,do_volume,
                      output_format,force_num_threads);
 
    fprintf(stderr,"Done.\n");
@@ -159,21 +163,23 @@ int Usage(char progname[80],int status) {
        "                                                                           ",
        "   -q          create higher quality image at the expense of compute time  ",
        "                                                                           ",
-       "   -pc frac    peak cropping: peak value in image will be this number times",
-       "               the actual peak value computed, default=0.8, 1.0 means no   ",
-       "               data is lost, but a smaller number may produce a better     ",
-       "               image                                                       ",
-       "                                                                           ",
        "   -t num      thickness of the mesh in world coordinates,                 ",
        "               default = (1 layer), regardless of resolution               ",
        "                                                                           ",
        "   -s          image only the shell of the mesh (default behavior)         ",
        "                                                                           ",
+       "   -v          image the volume of the mesh                                ",
+       "                                                                           ",
        "   -8          write an 8-bit grey image                                   ",
        "                                                                           ",
-       "   -16         write a 16-bit grey image, if supported by file format      ",
+       "   -16         write a 16-bit grey image                                   ",
        "                                                                           ",
-       "   -v          image the volume of the mesh                                ",
+       "   -pc frac    peak cropping: peak value in image will be this number times",
+       "               the actual peak value computed, default=0.8, 1.0 means no   ",
+       "               data is lost, but a smaller number may produce a better     ",
+       "               image                                                       ",
+       "                                                                           ",
+       "   -g gamma    gamma value (exponent) for output image                     ",
        "                                                                           ",
        "   -r [res]    pixel resolution of the long edge of the image, default=512 ",
        "                                                                           ",

@@ -56,7 +56,7 @@ int write_png_image(png_byte**,int,int,int);
  * "hiq" toggles higher-quality rendering (TRUE|FALSE)
  */
 int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
-      double thick, int square, double border, int hiq, double peak_crop,
+      double thick, int square, double border, int hiq, double peak_crop, double gamma,
       int write_hibit, int is_solid, char* output_format, int force_num_threads) {
 
    // int is_solid = TRUE;		// xray interior, not just boundary
@@ -549,105 +549,106 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    float maxval = 0.;
    if (write_pgm) {
 
-   fprintf(stderr,"Writing PGM image"); fflush(stderr);
-   // gamma-correct and check for peak value
-   for (int j=yres-1; j>-1; j--) {
-      for (int i=0; i<xres; i++) {
-         // int printval = (int)(a[i][j]);
-         // if (isnan(a[i][j])) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
-         // if (a[i][j]<0) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
-         // this is gamma correction, leave it in, it helps lower-res images
-         // um, it doesn't actually do anything? Okay.
-         //a[i][j] = exp(0.5*log(a[i][j]));
-         if (a[i][j] > maxval) maxval = a[i][j];
+      fprintf(stderr,"Writing PGM image"); fflush(stderr);
+      // gamma-correct and check for peak value
+      for (int j=yres-1; j>-1; j--) {
+         for (int i=0; i<xres; i++) {
+            // int printval = (int)(a[i][j]);
+            // if (isnan(a[i][j])) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
+            // if (a[i][j]<0) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
+            // this is gamma correction, leave it in, it helps lower-res images
+            // um, it doesn't actually do anything? Okay.
+            a[i][j] = exp(gamma*log(a[i][j]));
+            if (a[i][j] > maxval) maxval = a[i][j];
+         }
       }
-   }
-   fprintf(stderr,", maxval is %g\n",maxval); fflush(stderr);
+      fprintf(stderr,", maxval is %g\n",maxval); fflush(stderr);
 
-   // peak cropping is now a command-line option
-   fprintf(stderr,", maxval is %g",maxval);
-   if (!is_solid) {
-      maxval *= peak_crop;
-      fprintf(stderr,", peak-cropped maxval is %g",maxval);
-   }
-   fprintf(stderr,"\n"); fflush(stderr);
+      // peak cropping is now a command-line option
+      fprintf(stderr,", maxval is %g",maxval);
+      if (!is_solid) {
+         maxval *= peak_crop;
+         fprintf(stderr,", peak-cropped maxval is %g",maxval);
+      }
+      fprintf(stderr,"\n"); fflush(stderr);
 
-   // scale all values
-   if (write_hibit) {
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            a[i][j] *= 65536.0/maxval;
+      // scale all values
+      if (write_hibit) {
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               a[i][j] *= 65536.0/maxval;
+            }
+         }
+         // write header
+         fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,65535);
+         // write data
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               int printval = (int)(a[i][j]);
+               if (printval > 65535) printval = 65535;
+               fprintf(stdout,"%d\n",printval);
+            }
+         }
+      } else {
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               a[i][j] *= 256.0/maxval;
+            }
+         }
+         // write header
+         fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,255);
+         // write data
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               int printval = (int)(a[i][j]);
+               if (printval > 255) printval = 255;
+               fprintf(stdout,"%d\n",printval);
+            }
          }
       }
-      // write header
-      fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,65535);
-      // write data
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            int printval = (int)(a[i][j]);
-            if (printval > 65535) printval = 65535;
-            fprintf(stdout,"%d\n",printval);
-         }
-      }
-   } else {
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            a[i][j] *= 256.0/maxval;
-         }
-      }
-      // write header
-      fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,255);
-      // write data
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            int printval = (int)(a[i][j]);
-            if (printval > 255) printval = 255;
-            fprintf(stdout,"%d\n",printval);
-         }
-      }
-   }
 
    } else if (write_png) {
 
-   fprintf(stderr,"Writing PNG image"); fflush(stderr);
-   // gamma-correct and check for peak value
-   for (int j=yres-1; j>-1; j--) {
+      fprintf(stderr,"Writing PNG image"); fflush(stderr);
+
+      // gamma-correct and check for peak value
       for (int i=0; i<xres; i++) {
-         a[i][j] = exp(0.5*log(a[i][j]));
-         if (a[i][j] > maxval) maxval = a[i][j];
-      }
-   }
-
-   fprintf(stderr,", maxval is %g",maxval);
-   if (!is_solid) {
-      maxval *= peak_crop;
-      fprintf(stderr,", peak-cropped maxval is %g",maxval);
-   }
-   fprintf(stderr,"\n"); fflush(stderr);
-
-   // scale all values
-   if (write_hibit) {
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            int printval = (int)(a[i][j]*65536.0/maxval);
-            if (printval<0) printval = 0;
-            if (printval>65535) printval = 65535;
-            img[yres-1-j][2*i] = (png_byte)(printval/256);
-            img[yres-1-j][2*i+1] = (png_byte)(printval%256);
+         for (int j=0; j<yres; j++) {
+            a[i][j] = exp(gamma*log(a[i][j]));
+            if (a[i][j] > maxval) maxval = a[i][j];
          }
       }
-      write_png_image(img,yres,xres,16);
-   } else {
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            int printval = (int)(a[i][j]*256.0/maxval);
-            if (printval<0) printval = 0;
-            if (printval>255) printval = 255;
-            img[yres-1-j][i] = (png_byte)printval;
-         }
+
+      fprintf(stderr,", maxval is %g",maxval);
+      if (!is_solid) {
+         maxval *= peak_crop;
+         fprintf(stderr,", peak-cropped maxval is %g",maxval);
       }
-      write_png_image(img,yres,xres,8);
-   }
+      fprintf(stderr,"\n"); fflush(stderr);
+
+      // scale all values
+      if (write_hibit) {
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               int printval = (int)(a[i][j]*65536.0/maxval);
+               if (printval<0) printval = 0;
+               if (printval>65535) printval = 65535;
+               img[yres-1-j][2*i] = (png_byte)(printval/256);
+               img[yres-1-j][2*i+1] = (png_byte)(printval%256);
+            }
+         }
+         write_png_image(img,yres,xres,16);
+      } else {
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               int printval = (int)(a[i][j]*256.0/maxval);
+               if (printval<0) printval = 0;
+               if (printval>255) printval = 255;
+               img[yres-1-j][i] = (png_byte)printval;
+            }
+         }
+         write_png_image(img,yres,xres,8);
+      }
 
    }
 
