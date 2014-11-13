@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2003,4,6  Mark J. Stock
+ * Copyright (C) 1999,2003,4,6,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -146,7 +146,9 @@ int main(int argc,char **argv) {
          use_spline = TRUE;
       } else if (strncmp(argv[i], "-sph", 4) == 0) {
          force_sphere = TRUE;
-         if (argv[i+1][0]!='-') sphere_rad = atof(argv[++i]);
+         if (argc > i+1) {
+            if (argv[i+1][0]!='-') sphere_rad = atof(argv[++i]);
+         }
       } else if (strncmp(argv[i], "-se", 3) == 0) {
          rand_seed = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
