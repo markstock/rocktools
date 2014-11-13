@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2002-4,6  Mark J. Stock
+ * Copyright (C) 1999,2002-4,6,13-14  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -100,15 +100,18 @@ tri_pointer read_input(char infile[80],int invert,tri_pointer tri_head) {
  */
 tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
 
-   int i,j,k,jj;
+   int inode = 0;
+   int inorm = 0;
    int num_tri = 0;
    int num_nodes = 0;
    int use_norm = FALSE;
-   char onechar,anotherchar;
-   char twochar[2];
+   //char onechar,anotherchar;
+   char onechar[2],anotherchar[2];
+   //char twochar[2];
+   char twochar[3];
    char sbuf[128];
    char xs[20],ys[20],zs[20];
-   int node_index[3];
+   char newval[32],sub[10];
    VEC *loc = NULL;
    VEC *normal = NULL;
    VEC test,nmin,nmax;
@@ -130,8 +133,6 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    fprintf(stderr,"Prescanning %s",filename);
    fflush(stderr);
 
-   // important, i is the node counter variable!
-   i = 0;
    nmax.x = -9.999e+9;
    nmax.y = -9.999e+9;
    nmax.z = -9.999e+9;
@@ -143,12 +144,12 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    while (fread(&onechar,sizeof(char),1,fp) == 1) {
 
       // only read nodes, we're putting them into bins on this pass
-      if (onechar == 'v') {
+      if (onechar[0] == 'v') {
 
          fread(&anotherchar,sizeof(char),1,fp);
          // fprintf(stdout,"  (%c)\n",anotherchar); fflush(stdout);
 
-         if (isspace(anotherchar)) {
+         if (isspace(anotherchar[0])) {
             // read a vertex location
             fscanf(fp,"%s %s %s",xs,ys,zs);
             //fprintf(stderr,"%d  %s %s %s\n",i,xs,ys,zs); fflush(stderr);
@@ -161,37 +162,32 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             if (test.x < nmin.x) nmin.x = test.x;
             if (test.y < nmin.y) nmin.y = test.y;
             if (test.z < nmin.z) nmin.z = test.z;
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
             //fprintf(stderr,"%d  %g %g %g\n",i,test.x,test.y,test.z); fflush(stderr);
-            if (i/DOTPER == (i+DPMO)/DOTPER) fprintf(stderr,".");
-            i++;
-         } else if (anotherchar == 'n') {
+            if (inode/DOTPER == (inode+DPMO)/DOTPER) fprintf(stderr,".");
+            inode++;
+         } else if (anotherchar[0] == 'n') {
             // it's a vertex normal
             use_norm = TRUE;
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
+            inorm++;
          } else {
             // if its not identifiable, skip it, do not scale, do not write
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
          }
 
       } else {
          // if its not identifiable, skip it, do not scale, do not write
-         fscanf(fp,"%[^\n]",sbuf);	// read line beyond first char
-         fscanf(fp,"%[\n]",twochar);	// read newline
       }
+      fscanf(fp,"%[^\n]",sbuf);	// read line beyond first char
+      fscanf(fp,"%[\n]",twochar);	// read newline
    }
    fprintf(stderr,"\n");
    fclose(fp);
 
    // now, we know how many nodes there will be, size and malloc the array
-   loc = (VEC*)malloc(i*sizeof(VEC));
+   loc = (VEC*)malloc(inode*sizeof(VEC));
    // fprintf(stderr,"Found %d vertexes\n",i);
 
    if (use_norm)
-      normal = (VEC*)malloc(i*sizeof(VEC));
+      normal = (VEC*)malloc(inorm*sizeof(VEC));
 
    // Initialize bin structure
    // fprintf(stderr,"%g %g %g   %g %g %g\n",nmin.x,nmin.y,nmin.z,nmax.x,nmax.y,nmax.z);
@@ -211,109 +207,122 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    fprintf(stderr,"Opening file %s...",filename);
    fflush(stderr);
 
-   // important, i is the node counter variable!
-   i = 0;
-   // important, j is the node normal counter variable!
-   k = 0;
+   // node counter variable!
+   inode = 0;
+   // node normal counter variable!
+   inorm = 0;
+   // line count variable
+   int nlines = 0;
 
    // read the input file and update statistics
    while (fread(&onechar,sizeof(char),1,fp) == 1) {
 
+      nlines++;
       // fprintf(stdout,"(%c)",onechar); fflush(stdout);
 
-      if (onechar == '#') {
+      if (onechar[0] == '#') {
          // read a comment line
-         fscanf(fp,"%[^\n]",sbuf);	// read comment beyond '#'
-         fscanf(fp,"%[\n]",twochar);	// read newline
          // fprintf(stdout,"#%s\n",sbuf);	// write comment
 
-      } else if (onechar == 'v') {
+      } else if (onechar[0] == 'v') {
 
          fread(&anotherchar,sizeof(char),1,fp);
          // fprintf(stdout,"  (%c)\n",anotherchar); fflush(stdout);
 
-         if (isspace(anotherchar)) {
+         if (isspace(anotherchar[0])) {
             // read a vertex location
             fscanf(fp,"%s %s %s",xs,ys,zs);
             // fprintf(stderr,"%d  (%s) (%s) (%s)\n",i,xs,ys,zs); fflush(stderr);
-            loc[i].x = atof(xs);
-            loc[i].y = atof(ys);
-            loc[i].z = atof(zs);
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
-            i++;
-         } else if (anotherchar == 'n') {
+            loc[inode].x = atof(xs);
+            loc[inode].y = atof(ys);
+            loc[inode].z = atof(zs);
+            inode++;
+         } else if (anotherchar[0] == 'n') {
             // read a vertex normal - NOT USEFUL YET
-            use_norm = 1;
+            use_norm = TRUE;
             fscanf(fp,"%s %s %s",xs,ys,zs);
             // fprintf(stderr,"n %d  %s %s %s\n",k,xs,ys,zs); fflush(stderr);
-            normal[k].x = atof(xs);
-            normal[k].y = atof(ys);
-            normal[k].z = atof(zs);
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
-            k++;
-         } else if (anotherchar == 't') {
+            normal[inorm].x = atof(xs);
+            normal[inorm].y = atof(ys);
+            normal[inorm].z = atof(zs);
+            inorm++;
+         } else if (anotherchar[0] == 't') {
             // it's a texture coordinate - NOT USEFUL YET
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
          } else {
             // if its not identifiable, skip it, do not scale, do not write
-            fscanf(fp,"%[^\n]",sbuf);	// read line up to newline
-            fscanf(fp,"%[\n]",twochar);	// read newline
          }
 
-      } else if (onechar == 'f') {
+      } else if (onechar[0] == 'f') {
          // read a triangle line
          new_tri = (TRI*)malloc(sizeof(TRI));
          new_tri->index = num_tri;
-         // fprintf(stdout,"t");
-         // fprintf(stderr,"\ntri %d\n",new_tri->index);
-         fscanf(fp,"%s %s %s",xs,ys,zs);
-         node_index[0] = atoi(xs);
-         node_index[1] = atoi(ys);
-         node_index[2] = atoi(zs);
-         if (invert) {
-            for (j=0; j<3; j++) {
-               if (node_index[j] < 1) {
-                  fprintf(stderr,"ERROR (read_obj): node index in file is <1\nQuitting.");
-                  exit(1);
-               }
-               new_node = add_to_nodes_list(new_tri,&num_nodes,j,&loc[node_index[j]-1],&nodebin);
-               // flip the normals here, by reversing the node order
-               new_tri->node[2-j] = new_node;
+         //fprintf(stdout,"t");
+         //fprintf(stderr,"\nline %d, tri %d\n",nlines,new_tri->index);
+         int node_index[3] = {0,0,0};
+         //int uv_index[3] = {0,0,0};
+         int norm_index[3] = {0,0,0};
+
+         // read each set of values, like "39//123" or "5" or "1192/2524"
+         for (int nn=0; nn<3; nn++) {
+            fscanf(fp,"%s",newval);
+
+            // look for a slash
+            int i;
+            for (i=0; i<strlen(newval); i++)
+               if (newval[i] == '/' || newval[i] == '\0') break;
+            strncpy(sub,newval,i);
+            sub[i] = '\0';
+            if (i>0) node_index[nn] = atoi(sub);
+
+            // should we continue?
+            if (newval[i] == '/') {
+              int j;
+              for (j=i+1; j<strlen(newval); j++)
+                 if (newval[j] == '/' || newval[j] == '\0') break;
+              strncpy(sub,newval+i+1,j);
+              sub[j-i-1] = '\0';
+              //if (j-i > 1) uv_index[nn] = atoi(sub);
+
+              // should we continue?
+              if (newval[j] == '/') {
+                 int k;
+                 for (k=j+1; k<strlen(newval); k++)
+                    if (newval[k] == '/' || newval[k] == '\0') break;
+                 strncpy(sub,newval+j+1,k);
+                 sub[k-j-1] = '\0';
+                 if (k-j > 1) norm_index[nn] = atoi(sub);
+              }
             }
-         } else {
-            for (j=0; j<3; j++) {
-               if (node_index[j] < 1) {
-                  fprintf(stderr,"ERROR (read_obj): node index in file is <1\nQuitting.");
-                  exit(1);
-               }
-               new_node = add_to_nodes_list(new_tri,&num_nodes,j,&loc[node_index[j]-1],&nodebin);
+         }
+
+         for (int j=0; j<3; j++) {
+            if (node_index[j] < 1) {
+               fprintf(stderr,"ERROR (read_obj): node index in file is <1 on line %d\nQuitting.",nlines);
+               exit(1);
+            }
+            new_node = add_to_nodes_list(new_tri,&num_nodes,j,&loc[node_index[j]-1],&nodebin);
+            // flip the normals here, by reversing the node order
+            if (invert) {
+               new_tri->node[2-j] = new_node;
+            } else {
                new_tri->node[j] = new_node;
-               // fprintf(stderr,"%d %d %d  %g %g %g\n",num_tri,num_nodes,node_index[j]-1,loc[node_index[j]-1].x,loc[node_index[j]-1].y,loc[node_index[j]-1].z);
-               // fprintf(stderr,"%d %d  %g %g %g\n",new_tri->index,new_tri->node[j]->index,new_tri->node[j]->loc.x,new_tri->node[j]->loc.y,new_tri->node[j]->loc.z);
-               // fprintf(stderr,"  node %d, head is %d \n",new_node->index,node_head->index);
-               // fflush(stderr);
             }
          }
 
          // set the node's normals here, if they were read in
+         new_tri->use_norm = use_norm;
          if (use_norm) {
-            for (j=0; j<3; j++) {
-               jj = node_index[j];
+            for (int j=0; j<3; j++) {
+               int jj = norm_index[j];
                new_tri->norm[j].x = normal[jj].x;
                new_tri->norm[j].y = normal[jj].y;
                new_tri->norm[j].z = normal[jj].z;
             }
-            new_tri->use_norm = TRUE;
             use_norm = FALSE;
-         } else {
-            new_tri->use_norm = FALSE;
          }
 
          // set the adjacent triangle and midpoint pointers to NULL
-         for (j=0; j<3; j++) {
+         for (int j=0; j<3; j++) {
             new_tri->adjacent[j] = NULL;
             new_tri->midpoint[j] = NULL;
          }
@@ -329,15 +338,14 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
          }
          // fprintf(stderr,"  tri head is %d \n",tri_head->index);
 
-         fscanf(fp,"%[\n]",twochar);	/* read newline */
+         //fscanf(fp,"%[\n]",twochar);	/* read newline */
          if (num_tri/DOTPER == (num_tri+DPMO)/DOTPER)
             fprintf(stderr,".");
-
-      } else {
-         // if its not identifiable, skip it, do not scale, do not write
-         fscanf(fp,"%[^\n]",sbuf);	// read line beyond first char
-         fscanf(fp,"%[\n]",twochar);	// read newline
       }
+
+      // skip the rest of the line, do not scale, do not write
+      fscanf(fp,"%[^\n]",sbuf);	// read line beyond first char
+      fscanf(fp,"%[\n]",twochar);	// read newline
    }
    fclose(fp);
    fprintf(stderr,"%d tris\n",num_tri);
