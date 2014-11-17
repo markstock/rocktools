@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2009  Mark J. Stock
+ * Copyright (C) 1999,2009,14  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,8 +30,6 @@
 #include <math.h>
 #include <ctype.h>
 #include "structs.h"
-
-extern node_ptr node_head;
 
 int read_files_for_nodes (int,char**);
 VEC get_spherical_random_vector (double);
@@ -354,8 +352,10 @@ int sphericalize_nodes (int num_cycles) {
 tri_pointer create_convex_hull () {
 
    int num_tri = 0;
+   int num_norms = 0;
    int i,num_nodes;
    double maxdist,thisdist;
+   VEC testnorm;
    node_ptr thisn,farnode;
    tri_pointer test_head,new_tri,test,this,hole_head,prev,temp,new_head,final_head;
    temp = NULL;
@@ -364,6 +364,10 @@ tri_pointer create_convex_hull () {
    // nodes can be pointed to from tris in either final_head or test_head
    test_head = NULL;
    final_head = NULL;
+
+   // prepare for binning normals
+   NBIN normbin;
+   (void) prepare_norm_bin (&normbin);
 
    // make sure that the incoming triangle list is empty (otherwise we'll get confused)
    if (final_head) {
@@ -388,7 +392,8 @@ tri_pointer create_convex_hull () {
    new_tri->node[1] = new_tri->node[0]->next_node;
    new_tri->node[2] = new_tri->node[1]->next_node;
    // set the normal
-   new_tri->norm[0] = find_tri_normal(new_tri);
+   testnorm = find_tri_normal(new_tri);
+   new_tri->norm[0] = add_to_norms_list(&num_norms,&testnorm,&normbin);
    // make it the new head
    new_tri->next_tri = NULL;
    test_head = new_tri;
@@ -400,7 +405,8 @@ tri_pointer create_convex_hull () {
    new_tri->node[1] = test_head->node[2];
    new_tri->node[2] = test_head->node[1];
    // set the normal
-   new_tri->norm[0] = find_tri_normal(new_tri);
+   testnorm = find_tri_normal(new_tri);
+   new_tri->norm[0] = add_to_norms_list(&num_norms,&testnorm,&normbin);
    // set all adjacent pointers to the other tri
    new_tri->adjacent[0] = test_head;
    new_tri->adjacent[1] = test_head;
@@ -424,7 +430,7 @@ tri_pointer create_convex_hull () {
       farnode = NULL;
       thisn = node_head;
       while (thisn) {
-         thisdist = dot(test->norm[0],from(test->node[0]->loc,thisn->loc));
+         thisdist = dot(test->norm[0]->norm,from(test->node[0]->loc,thisn->loc));
          //printf("  dist %d is %g\n",thisn->index,thisdist);
          if (thisdist > maxdist) {
             maxdist = thisdist;
@@ -452,7 +458,7 @@ tri_pointer create_convex_hull () {
          while (this) {
             // is the farnode in the "outside" hemisphere of the this triangle?
             //if (dot(this->norm[0],from(test->node[0]->loc,farnode->loc)) > 0.0) {
-            if (dot(this->norm[0],from(this->node[0]->loc,farnode->loc)) > 0.0) {
+            if (dot(this->norm[0]->norm,from(this->node[0]->loc,farnode->loc)) > 0.0) {
                //printf("    visible tri %d has nodes %d %d %d\n",this->index,this->node[0]->index,this->node[1]->index,this->node[2]->index);
                // save the next vis test
                temp = this->next_tri;
@@ -511,7 +517,8 @@ tri_pointer create_convex_hull () {
                   new_tri->node[2] = this->node[(i+1)%3];
                   //printf("    new tri has nodes %d %d %d\n",new_tri->node[0]->index,new_tri->node[1]->index,new_tri->node[2]->index);
                   // set the normal
-                  new_tri->norm[0] = find_tri_normal(new_tri);
+                  testnorm = find_tri_normal(new_tri);
+                  new_tri->norm[0] = add_to_norms_list(&num_norms,&testnorm,&normbin);
                   // set all adjacent pointers to the other tri
                   new_tri->adjacent[0] = NULL;
                   new_tri->adjacent[1] = this->adjacent[i];

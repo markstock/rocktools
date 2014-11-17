@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004,2006-8  Mark J. Stock
+ * Copyright (C) 1999,2004,2006-8,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,11 +36,10 @@
 
 /* This needs to be here to use routines in utils.c */
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
 int Usage(char[80],int);
-extern int get_tri(FILE*, int, tri_pointer, char[512]);
-extern int write_tri(FILE*, int, tri_pointer, char[512]);
 
 // from inout.c
 extern int find_mesh_stats(char*, VEC*, VEC*, int*, int*);
@@ -81,7 +80,6 @@ int main(int argc,char **argv) {
    char output_1[80];		/* filename for the output */
    char output_2[80];		/* filename for the output */
    char progname[80];		/* name of binary executable */
-   char normal_string[512];
    tri_pointer the_tri,ttri1,ttri2;
    node_ptr the_nodes[3],tnode1,tnode2;
    VEC tnorm1,tnorm2;
@@ -245,7 +243,9 @@ int main(int argc,char **argv) {
    tnode1 = (NODE *)malloc(sizeof(NODE));
    tnode2 = (NODE *)malloc(sizeof(NODE));
    ttri1 = (TRI *)malloc(sizeof(TRI));
+   for (i=0; i<3; i++) ttri1->norm[i] = (NORM *)malloc(sizeof(NORM));
    ttri2 = (TRI *)malloc(sizeof(TRI));
+   for (i=0; i<3; i++) ttri2->norm[i] = (NORM *)malloc(sizeof(NORM));
    tnorm1.x = 0.;
    tnorm1.y = 0.;
    tnorm1.z = 0.;
@@ -266,7 +266,7 @@ int main(int argc,char **argv) {
 
 
    /* as long as there are triangles available, operate */
-   while (get_tri(ifp,input_format,the_tri,normal_string) == 1) {
+   while (get_tri(ifp,input_format,the_tri) == 1) {
 
       num_read++;
       tri_is_low = FALSE;
@@ -319,10 +319,10 @@ int main(int argc,char **argv) {
          if (use_dir == z) { thresh = z_split; i = 2; }
 
          // between node vn1 and vn3
-         if (the_tri->use_norm) {
+         if (the_tri->norm[vn1] && the_tri->norm[vn3]) {
             find_arc_intersection(i,thresh,
-                                  the_tri->node[vn1]->loc, the_tri->norm[vn1],
-                                  the_tri->node[vn3]->loc, the_tri->norm[vn3],
+                                  the_tri->node[vn1]->loc, the_tri->norm[vn1]->norm,
+                                  the_tri->node[vn3]->loc, the_tri->norm[vn3]->norm,
                                   &tnode1->loc,            &tnorm1);
          } else {
             if (use_dir == x) {
@@ -350,10 +350,10 @@ int main(int argc,char **argv) {
          }
 
          // between node vn2 and vn3
-         if (the_tri->use_norm) {
+         if (the_tri->norm[vn2] && the_tri->norm[vn3]) {
             find_arc_intersection(i,thresh,
-                                  the_tri->node[vn2]->loc, the_tri->norm[vn2],
-                                  the_tri->node[vn3]->loc, the_tri->norm[vn3],
+                                  the_tri->node[vn2]->loc, the_tri->norm[vn2]->norm,
+                                  the_tri->node[vn3]->loc, the_tri->norm[vn3]->norm,
                                   &tnode2->loc,            &tnorm2);
          } else {
             if (use_dir == x) {
@@ -385,20 +385,19 @@ int main(int argc,char **argv) {
             ttri1->node[0] = the_tri->node[vn3];
             ttri1->node[1] = tnode1;
             ttri1->node[2] = tnode2;
-            if (the_tri->use_norm) {
-               ttri1->norm[0].x = the_tri->norm[vn3].x;
-               ttri1->norm[0].y = the_tri->norm[vn3].y;
-               ttri1->norm[0].z = the_tri->norm[vn3].z;
-               ttri1->norm[1].x = tnorm1.x;
-               ttri1->norm[1].y = tnorm1.y;
-               ttri1->norm[1].z = tnorm1.z;
-               ttri1->norm[2].x = tnorm2.x;
-               ttri1->norm[2].y = tnorm2.y;
-               ttri1->norm[2].z = tnorm2.z;
-               ttri1->use_norm = TRUE;
+            if (the_tri->norm[0] && the_tri->norm[1] && the_tri->norm[2]) {
+               ttri1->norm[0]->norm.x = the_tri->norm[vn3]->norm.x;
+               ttri1->norm[0]->norm.y = the_tri->norm[vn3]->norm.y;
+               ttri1->norm[0]->norm.z = the_tri->norm[vn3]->norm.z;
+               ttri1->norm[1]->norm.x = tnorm1.x;
+               ttri1->norm[1]->norm.y = tnorm1.y;
+               ttri1->norm[1]->norm.z = tnorm1.z;
+               ttri1->norm[2]->norm.x = tnorm2.x;
+               ttri1->norm[2]->norm.y = tnorm2.y;
+               ttri1->norm[2]->norm.z = tnorm2.z;
             }
 
-            write_tri(ofp1,output_format,ttri1,normal_string);
+            write_tri(ofp1,output_format,ttri1);
             num_wrote_1++;
 
             // the 4-sided triangle base goes to file 2
@@ -408,31 +407,29 @@ int main(int argc,char **argv) {
             ttri2->node[0] = the_tri->node[vn2];
             ttri2->node[1] = tnode2;
             ttri2->node[2] = the_tri->node[vn1];
-            if (the_tri->use_norm) {
-               ttri1->norm[0].x = the_tri->norm[vn1].x;
-               ttri1->norm[0].y = the_tri->norm[vn1].y;
-               ttri1->norm[0].z = the_tri->norm[vn1].z;
-               ttri1->norm[1].x = tnorm2.x;
-               ttri1->norm[1].y = tnorm2.y;
-               ttri1->norm[1].z = tnorm2.z;
-               ttri1->norm[2].x = tnorm1.x;
-               ttri1->norm[2].y = tnorm1.y;
-               ttri1->norm[2].z = tnorm1.z;
-               ttri1->use_norm = TRUE;
-               ttri2->norm[0].x = the_tri->norm[vn2].x;
-               ttri2->norm[0].y = the_tri->norm[vn2].y;
-               ttri2->norm[0].z = the_tri->norm[vn2].z;
-               ttri2->norm[1].x = tnorm2.x;
-               ttri2->norm[1].y = tnorm2.y;
-               ttri2->norm[1].z = tnorm2.z;
-               ttri2->norm[2].x = the_tri->norm[vn1].x;
-               ttri2->norm[2].y = the_tri->norm[vn1].y;
-               ttri2->norm[2].z = the_tri->norm[vn1].z;
-               ttri2->use_norm = TRUE;
+            if (the_tri->norm[0] && the_tri->norm[1] && the_tri->norm[2]) {
+               ttri1->norm[0]->norm.x = the_tri->norm[vn1]->norm.x;
+               ttri1->norm[0]->norm.y = the_tri->norm[vn1]->norm.y;
+               ttri1->norm[0]->norm.z = the_tri->norm[vn1]->norm.z;
+               ttri1->norm[1]->norm.x = tnorm2.x;
+               ttri1->norm[1]->norm.y = tnorm2.y;
+               ttri1->norm[1]->norm.z = tnorm2.z;
+               ttri1->norm[2]->norm.x = tnorm1.x;
+               ttri1->norm[2]->norm.y = tnorm1.y;
+               ttri1->norm[2]->norm.z = tnorm1.z;
+               ttri2->norm[0]->norm.x = the_tri->norm[vn2]->norm.x;
+               ttri2->norm[0]->norm.y = the_tri->norm[vn2]->norm.y;
+               ttri2->norm[0]->norm.z = the_tri->norm[vn2]->norm.z;
+               ttri2->norm[1]->norm.x = tnorm2.x;
+               ttri2->norm[1]->norm.y = tnorm2.y;
+               ttri2->norm[1]->norm.z = tnorm2.z;
+               ttri2->norm[2]->norm.x = the_tri->norm[vn1]->norm.x;
+               ttri2->norm[2]->norm.y = the_tri->norm[vn1]->norm.y;
+               ttri2->norm[2]->norm.z = the_tri->norm[vn1]->norm.z;
             }
 
-            write_tri(ofp2,output_format,ttri1,normal_string);
-            write_tri(ofp2,output_format,ttri2,normal_string);
+            write_tri(ofp2,output_format,ttri1);
+            write_tri(ofp2,output_format,ttri2);
             num_wrote_2 += 2;
 
          } else {
@@ -443,64 +440,61 @@ int main(int argc,char **argv) {
             ttri2->node[0] = the_tri->node[vn2];
             ttri2->node[1] = tnode2;
             ttri2->node[2] = the_tri->node[vn1];
-            if (the_tri->use_norm) {
-               ttri1->norm[0].x = the_tri->norm[vn1].x;
-               ttri1->norm[0].y = the_tri->norm[vn1].y;
-               ttri1->norm[0].z = the_tri->norm[vn1].z;
-               ttri1->norm[1].x = tnorm2.x;
-               ttri1->norm[1].y = tnorm2.y;
-               ttri1->norm[1].z = tnorm2.z;
-               ttri1->norm[2].x = tnorm1.x;
-               ttri1->norm[2].y = tnorm1.y;
-               ttri1->norm[2].z = tnorm1.z;
-               ttri1->use_norm = TRUE;
-               ttri2->norm[0].x = the_tri->norm[vn2].x;
-               ttri2->norm[0].y = the_tri->norm[vn2].y;
-               ttri2->norm[0].z = the_tri->norm[vn2].z;
-               ttri2->norm[1].x = tnorm2.x;
-               ttri2->norm[1].y = tnorm2.y;
-               ttri2->norm[1].z = tnorm2.z;
-               ttri2->norm[2].x = the_tri->norm[vn1].x;
-               ttri2->norm[2].y = the_tri->norm[vn1].y;
-               ttri2->norm[2].z = the_tri->norm[vn1].z;
-               ttri2->use_norm = TRUE;
+            if (the_tri->norm[0] && the_tri->norm[1] && the_tri->norm[2]) {
+               ttri1->norm[0]->norm.x = the_tri->norm[vn1]->norm.x;
+               ttri1->norm[0]->norm.y = the_tri->norm[vn1]->norm.y;
+               ttri1->norm[0]->norm.z = the_tri->norm[vn1]->norm.z;
+               ttri1->norm[1]->norm.x = tnorm2.x;
+               ttri1->norm[1]->norm.y = tnorm2.y;
+               ttri1->norm[1]->norm.z = tnorm2.z;
+               ttri1->norm[2]->norm.x = tnorm1.x;
+               ttri1->norm[2]->norm.y = tnorm1.y;
+               ttri1->norm[2]->norm.z = tnorm1.z;
+               ttri2->norm[0]->norm.x = the_tri->norm[vn2]->norm.x;
+               ttri2->norm[0]->norm.y = the_tri->norm[vn2]->norm.y;
+               ttri2->norm[0]->norm.z = the_tri->norm[vn2]->norm.z;
+               ttri2->norm[1]->norm.x = tnorm2.x;
+               ttri2->norm[1]->norm.y = tnorm2.y;
+               ttri2->norm[1]->norm.z = tnorm2.z;
+               ttri2->norm[2]->norm.x = the_tri->norm[vn1]->norm.x;
+               ttri2->norm[2]->norm.y = the_tri->norm[vn1]->norm.y;
+               ttri2->norm[2]->norm.z = the_tri->norm[vn1]->norm.z;
             }
 
-            write_tri(ofp1,output_format,ttri1,normal_string);
-            write_tri(ofp1,output_format,ttri2,normal_string);
+            write_tri(ofp1,output_format,ttri1);
+            write_tri(ofp1,output_format,ttri2);
             num_wrote_1 += 2;
 
             // the single triangle tip goes to file 2
             ttri1->node[0] = the_tri->node[vn3];
             ttri1->node[1] = tnode1;
             ttri1->node[2] = tnode2;
-            if (the_tri->use_norm) {
-               ttri1->norm[0].x = the_tri->norm[vn3].x;
-               ttri1->norm[0].y = the_tri->norm[vn3].y;
-               ttri1->norm[0].z = the_tri->norm[vn3].z;
-               ttri1->norm[1].x = tnorm1.x;
-               ttri1->norm[1].y = tnorm1.y;
-               ttri1->norm[1].z = tnorm1.z;
-               ttri1->norm[2].x = tnorm2.x;
-               ttri1->norm[2].y = tnorm2.y;
-               ttri1->norm[2].z = tnorm2.z;
-               ttri1->use_norm = TRUE;
+            if (the_tri->norm[0] && the_tri->norm[1] && the_tri->norm[2]) {
+               ttri1->norm[0]->norm.x = the_tri->norm[vn3]->norm.x;
+               ttri1->norm[0]->norm.y = the_tri->norm[vn3]->norm.y;
+               ttri1->norm[0]->norm.z = the_tri->norm[vn3]->norm.z;
+               ttri1->norm[1]->norm.x = tnorm1.x;
+               ttri1->norm[1]->norm.y = tnorm1.y;
+               ttri1->norm[1]->norm.z = tnorm1.z;
+               ttri1->norm[2]->norm.x = tnorm2.x;
+               ttri1->norm[2]->norm.y = tnorm2.y;
+               ttri1->norm[2]->norm.z = tnorm2.z;
             }
 
-            write_tri(ofp2,output_format,ttri1,normal_string);
+            write_tri(ofp2,output_format,ttri1);
             num_wrote_2++;
          }
 
       } else if (tri_is_low) {
 
          // write the whole triangle to output_1
-         write_tri(ofp1,output_format,the_tri,normal_string);
+         write_tri(ofp1,output_format,the_tri);
          num_wrote_1++;
 
       } else {
 
          // write the whole triangle to output_2
-         write_tri(ofp2,output_format,the_tri,normal_string);
+         write_tri(ofp2,output_format,the_tri);
          num_wrote_2++;
       }
 

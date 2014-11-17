@@ -8,6 +8,13 @@ Last modified:
 2003-07-15 Mark Stock
 1999-06-09 Mark Stock
 
+2014-11-12
+Support uv coordinates
+Support more than 3 dimensions, like stickkit
+Support normals fully (input, output, present and absent on per-node basis)
+
+
+Older:
 
 Ideas:
 

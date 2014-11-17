@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004  Mark J. Stock
+ * Copyright (C) 1999,2004,14  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-//#include <malloc.h>
 #include "structs.h"
 
 int three_d_laplace(tri_pointer,int);
@@ -43,12 +42,12 @@ int define_sharp_edges(tri_pointer,double);
  */
 int three_d_laplace(tri_pointer tri_head,int num_cycles) {
 
-   int i,j,index;
+   int i,j;//,index;
    //int num = 0;
-   VEC sum,tri_norm;
+   VEC sum;//,tri_norm;
    node_ptr curr_node = node_head;
    //node_ptr test_node;
-   tri_pointer test_tri;
+   //tri_pointer test_tri;
 
 
    /* Loop this routine a number of times */
@@ -91,34 +90,6 @@ int three_d_laplace(tri_pointer tri_head,int num_cycles) {
          curr_node->temp_loc.y = (curr_node->temp_loc.y + 0.1*sum.y/curr_node->num_adj_nodes) / 1.1;
          curr_node->temp_loc.z = (curr_node->temp_loc.z + 0.1*sum.z/curr_node->num_adj_nodes) / 1.1;
          // fprintf(stderr," to x=%g\n",curr_node->loc.x); fflush(stderr);
-
-         /* for testing, if this is the last pass, save the delta as a normal */
-         if (1==0) {		/* if (i==num_cycles-1) */
-            sum.x = sum.x/curr_node->num_adj_nodes - curr_node->temp_loc.x;
-            sum.y = sum.y/curr_node->num_adj_nodes - curr_node->temp_loc.y;
-            sum.z = sum.z/curr_node->num_adj_nodes - curr_node->temp_loc.z;
-            sum = norm(sum);
-
-            /* make sure it is pointing outwards...how?
-             * compare the normal from above with the normal of any attached tri */
-            test_tri = curr_node->conn_tri[0];
-            tri_norm = cross(from(test_tri->node[0]->loc,test_tri->node[1]->loc),from(test_tri->node[0]->loc,test_tri->node[2]->loc));
-            if (dot(sum,tri_norm) < 0.0) {
-               sum.x = -sum.x;
-               sum.y = -sum.y;
-               sum.z = -sum.z;
-            }
-
-            /* loop over all connected triangles, save normal as norm[] */
-            for (j=0; j<curr_node->num_conn; j++) {
-               test_tri = curr_node->conn_tri[j];
-               test_tri->use_norm = 1;
-               index = curr_node->conn_tri_node[j];
-               test_tri->norm[index].x = sum.x;
-               test_tri->norm[index].y = sum.y;
-               test_tri->norm[index].z = sum.z;
-            }
-         }	/* end retired normals block */
 
          curr_node = curr_node->next_node;
       }
@@ -233,9 +204,10 @@ int three_d_surface_tension(tri_pointer tri_head,double coeff) {
  * method 2 uses the area-weighted normals of adj elems
  * method 3 uses the angle-weighted normals of adj elems
  */
-int compute_normals_2(tri_pointer tri_head, int method) {
+int compute_normals_2 (tri_pointer tri_head, int method) {
 
    int index,j;
+   int num_norms = 0;
    double weight;
    VEC sum,tri_norm;
    VEC e1,e2;
@@ -244,6 +216,27 @@ int compute_normals_2(tri_pointer tri_head, int method) {
 
    fprintf(stderr,"Computing normal vectors.");
    fflush(stderr);
+
+   // first, remove all old normals - this is dangerous and ugly
+   // smart pointers would be better
+   norm_ptr curr_norm = norm_head;
+   while (curr_norm) {
+      norm_ptr temp_norm = curr_norm->next_norm;
+      free(curr_norm);
+      curr_norm = temp_norm;
+   }
+   norm_head = NULL;
+
+   test_tri = tri_head;
+   while (test_tri) {
+      for (int i=0; i<3; i++) test_tri->norm[i] = NULL;
+      test_tri = test_tri->next_tri;
+   }
+
+
+   // now, compute new normals
+   NBIN normbin;
+   (void) prepare_norm_bin (&normbin);
 
    curr_node = node_head;
    while (curr_node) {
@@ -298,47 +291,30 @@ int compute_normals_2(tri_pointer tri_head, int method) {
            sum.y += tri_norm.y*weight;
            sum.z += tri_norm.z*weight;
          }
-         //wsum += weight;
       }
-      //if (sum.x+sum.y+sum.z == 0.) sum.z = 1.;
-      //sum.x /= weight;
-      //sum.y /= weight;
-      //sum.z /= weight;
+
       sum = norm(sum);
-      //fprintf(stderr,"  norm %g %g %g\n",sum.x,sum.y,sum.z);
       if (isnan(sum.x) || fabs(sum.x+sum.y+sum.z) < 1.e-6) {
          //fprintf(stderr,"node %d\n",curr_node->index);
          //fprintf(stderr,"  weight %g\n",weight);
          //fprintf(stderr,"  norm %g %g %g\n",sum.x,sum.y,sum.z);
-         //exit(0);
          sum.x = 0.;
          sum.y = 0.;
          sum.z = 1.;
       }
 
+      // make a new normal object
+      norm_ptr new_norm = add_to_norms_list(&num_norms,&sum,&normbin);
+
       // loop over all connected triangles, save normal as norm[]
       for (j=0; j<curr_node->num_conn; j++) {
          test_tri = curr_node->conn_tri[j];
-         //if (test_tri->use_norm == FALSE) {
-            // cannot set the flag here anymore!
-            //test_tri->use_norm = TRUE;
-            index = curr_node->conn_tri_node[j];
-            test_tri->norm[index].x = sum.x;
-            test_tri->norm[index].y = sum.y;
-            test_tri->norm[index].z = sum.z;
-         //}
+         index = curr_node->conn_tri_node[j];
+         test_tri->norm[index] = new_norm;
       }
 
       curr_node = curr_node->next_node;
    }
-
-   // now, we have all of the normals, set the flags
-   test_tri = tri_head;
-   while (test_tri) {
-     test_tri->use_norm = TRUE;
-     test_tri = test_tri->next_tri;
-   }
-
    fprintf(stderr,"\n");
 
    return(0);
@@ -356,14 +332,29 @@ int compute_normals_2(tri_pointer tri_head, int method) {
  *
  * this method is a copy of compute_normals_2
  */
-int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sharp_thresh) {
+int compute_normals_3 (tri_pointer tri_head, int method, int use_sharp, double sharp_thresh) {
 
    int index,i,j,icnt,newj;
    double weight,thresh;
-   VEC sum,tri_norm,curr_norm;
+   VEC sum,tri_norm,this_norm;
    VEC e1,e2;
    node_ptr curr_node;
    tri_pointer curr_tri,test_tri,last_tri;
+
+   // before messing with anything, remove all old normals - this is dangerous and ugly
+   norm_ptr curr_norm = norm_head;
+   while (curr_norm) {
+      norm_ptr temp_norm = curr_norm->next_norm;
+      free(curr_norm);
+      curr_norm = temp_norm;
+   }
+   norm_head = NULL;
+
+   test_tri = tri_head;
+   while (test_tri) {
+      for (int i=0; i<3; i++) test_tri->norm[i] = NULL;
+      test_tri = test_tri->next_tri;
+   }
 
    // ----------------------------------------------------------------
    // first step, make sure all triangles have real area,
@@ -380,13 +371,13 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
      // find the normal of this tri
      e1 = from(curr_tri->node[0]->loc,curr_tri->node[1]->loc);
      e2 = from(curr_tri->node[0]->loc,curr_tri->node[2]->loc);
-     curr_norm = cross(e1,e2);
-     curr_norm = norm(curr_norm);
+     this_norm = cross(e1,e2);
+     this_norm = norm(this_norm);
 
      // if the normal for this tri is bad, then throw away the triangle!
      // Whoah, that would affect connectivity! Shit.
      // But we have to, or else this bad tri will mess up other tris!
-     if (curr_norm.x < 2. && curr_norm.x > -2) {
+     if (this_norm.x < 2. && this_norm.x > -2) {
 
        // if true, then this is a good tri! go on to the next.
        last_tri = curr_tri;
@@ -396,7 +387,7 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
 
        // it's a bad tri, remove it CAREFULLY!
        //fprintf(stderr,"\ntri %d IS BAD\n",curr_tri->index);
-       //fprintf(stderr,"  norm %g %g %g\n",curr_norm.x,curr_norm.y,curr_norm.z);
+       //fprintf(stderr,"  norm %g %g %g\n",this_norm.x,this_norm.y,this_norm.z);
        //fprintf(stderr,"  nodes %d %d %d\n",curr_tri->node[0]->index,curr_tri->node[1]->index,curr_tri->node[2]->index);
 
        // remove the tri from the connectivity list for each node
@@ -435,6 +426,11 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
    fprintf(stderr,"Computing normal vectors.");
    fflush(stderr);
 
+   // prepare node binning structure
+   NBIN normbin;
+   (void) prepare_norm_bin (&normbin);
+   int num_norms = 0;
+
    // convert threshhold in degrees to a dot product threshhold
    thresh = cos(sharp_thresh*M_PI/180.);
 
@@ -445,8 +441,8 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
     // find the normal of this tri
     e1 = from(curr_tri->node[0]->loc,curr_tri->node[1]->loc);
     e2 = from(curr_tri->node[0]->loc,curr_tri->node[2]->loc);
-    curr_norm = cross(e1,e2);
-    curr_norm = norm(curr_norm);
+    this_norm = cross(e1,e2);
+    this_norm = norm(this_norm);
 
     // loop over each node in this tri
     for (i=0; i<3; i++) {
@@ -454,7 +450,7 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
       curr_node = curr_tri->node[i];
 
       //fprintf(stderr,"\nnode %d\n",curr_node->index);
-      //fprintf(stderr,"  norm %g %g %g\n",curr_norm.x,curr_norm.y,curr_norm.z);
+      //fprintf(stderr,"  norm %g %g %g\n",this_norm.x,this_norm.y,this_norm.z);
       //fprintf(stderr,"  node %g %g %g\n",curr_node->loc.x,curr_node->loc.y,curr_node->loc.z);
       //fprintf(stderr,"  num_conn %d\n",curr_node->num_conn); fflush(stderr);
       //for (j=0; j<curr_node->num_conn; j++) {
@@ -507,8 +503,8 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
          if (use_sharp) {
            // check vs threshhold
            // is the normal of the test tri significantly different from curr_tri?
-           if (dot(curr_norm,tri_norm) < thresh) weight = 0.;
-           //fprintf(stderr,"     dotp %g thresh %g\n",dot(curr_norm,tri_norm),thresh);
+           if (dot(this_norm,tri_norm) < thresh) weight = 0.;
+           //fprintf(stderr,"     dotp %g thresh %g\n",dot(this_norm,tri_norm),thresh);
          }
          sum.x += tri_norm.x*weight;
          sum.y += tri_norm.y*weight;
@@ -519,9 +515,9 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
       // check for inconclusive normals and assign triangle normal
       if (!(sum.x < 2. && sum.x > -2)) {
         fprintf(stderr,"    normal is bad! %g %g %g\n",sum.x,sum.y,sum.z);
-        sum.x = curr_norm.x;
-        sum.y = curr_norm.y;
-        sum.z = curr_norm.z;
+        sum.x = this_norm.x;
+        sum.y = this_norm.y;
+        sum.z = this_norm.z;
       }
       //if (!(sum.x < 2. && sum.x > -2)) {
       //  fprintf(stderr,"    normal is bad again! %g %g %g\n",sum.x,sum.y,sum.z);
@@ -531,20 +527,20 @@ int compute_normals_3(tri_pointer tri_head, int method, int use_sharp, double sh
       //}
 
       // is this normal very different from the tri's normal?
-      //if (dot(curr_norm,sum) < thresh) {
-      //  fprintf(stderr,"  tri norm %g %g %g\n",curr_norm.x,curr_norm.y,curr_norm.z);
+      //if (dot(this_norm,sum) < thresh) {
+      //  fprintf(stderr,"  tri norm %g %g %g\n",this_norm.x,this_norm.y,this_norm.z);
       //  fprintf(stderr,"    node norm %g %g %g\n",sum.x,sum.y,sum.z);
-      //  fprintf(stderr,"    dot prod %g\n",dot(curr_norm,sum));
+      //  fprintf(stderr,"    dot prod %g\n",dot(this_norm,sum));
       //}
-
-      // save normal
-      curr_tri->norm[i].x = sum.x;
-      curr_tri->norm[i].y = sum.y;
-      curr_tri->norm[i].z = sum.z;
       //fprintf(stderr,"  final norm %g %g %g\n",sum.x,sum.y,sum.z);
 
+      // make a new normal object
+      norm_ptr new_norm = add_to_norms_list(&num_norms,&sum,&normbin);
+
+      // save normal
+      curr_tri->norm[i] = new_norm;
+
     }
-    curr_tri->use_norm = TRUE;
     curr_tri = curr_tri->next_tri;
 
     if (icnt/DOTPER == (icnt+DPMO)/DOTPER) fprintf(stderr,".");
@@ -576,9 +572,9 @@ int grow_surface_along_normal(tri_pointer tri_head,double grow_distance) {
       test_tri = curr_node->conn_tri[0];
       corner = curr_node->conn_tri_node[0];
 
-      curr_node->loc.x += grow_distance*test_tri->norm[corner].x;
-      curr_node->loc.y += grow_distance*test_tri->norm[corner].y;
-      curr_node->loc.z += grow_distance*test_tri->norm[corner].z;
+      curr_node->loc.x += grow_distance*test_tri->norm[corner]->norm.x;
+      curr_node->loc.y += grow_distance*test_tri->norm[corner]->norm.y;
+      curr_node->loc.z += grow_distance*test_tri->norm[corner]->norm.z;
 
       curr_node = curr_node->next_node;
    }

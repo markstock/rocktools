@@ -35,6 +35,8 @@
 #include "structs.h"
 
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
+
 extern int write_bob(tri_pointer,double*,double*,double*,double,double,char*);
 int Usage(char[255],int);
 

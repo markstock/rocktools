@@ -48,8 +48,8 @@ int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
 
 int find_mesh_stats(char *,VEC*,VEC*,int*,int*);
-int get_tri(FILE*,int,tri_pointer,char*);
-int write_tri(FILE*,int,tri_pointer,char*);
+int get_tri(FILE*,int,tri_pointer);
+int write_tri(FILE*,int,tri_pointer);
 
 
 /*
@@ -104,7 +104,8 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    int inorm = 0;
    int num_tri = 0;
    int num_nodes = 0;
-   int use_norm = FALSE;
+   int num_norms = 0;
+   //int use_norm = FALSE;
    //char onechar,anotherchar;
    char onechar[2],anotherchar[2];
    //char twochar[2];
@@ -116,9 +117,11 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    VEC *normal = NULL;
    VEC test,nmin,nmax;
    node_ptr new_node = NULL;
+   norm_ptr new_norm = NULL;
    //tri_pointer tri_head = NULL;
    tri_pointer new_tri = NULL;
    BIN nodebin;
+   NBIN normbin;
    FILE *fp;
 
    // fprintf(stderr,"Try to read %s\n",filename); fflush(stderr);
@@ -167,7 +170,7 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             inode++;
          } else if (anotherchar[0] == 'n') {
             // it's a vertex normal
-            use_norm = TRUE;
+            //use_norm = TRUE;
             inorm++;
          } else {
             // if its not identifiable, skip it, do not scale, do not write
@@ -186,15 +189,15 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    loc = (VEC*)malloc(inode*sizeof(VEC));
    // fprintf(stderr,"Found %d vertexes\n",i);
 
-   if (use_norm)
-      normal = (VEC*)malloc(inorm*sizeof(VEC));
+   if (inorm > 0) normal = (VEC*)malloc(inorm*sizeof(VEC));
 
-   // Initialize bin structure
+   // Initialize bin structures
    // fprintf(stderr,"%g %g %g   %g %g %g\n",nmin.x,nmin.y,nmin.z,nmax.x,nmax.y,nmax.z);
    //nodebin.dx = (nmax.x-nmin.x)/(BIN_COUNT-1);
    //nodebin.start = nmin.x - 0.5*nodebin.dx;
    //for (i=0;i<BIN_COUNT;i++) nodebin.b[i] = NULL;
    (void) prepare_node_bin (&nodebin,nmin,nmax);
+   (void) prepare_norm_bin (&normbin);
 
 
    // open the .obj file for reading
@@ -239,7 +242,7 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             inode++;
          } else if (anotherchar[0] == 'n') {
             // read a vertex normal - NOT USEFUL YET
-            use_norm = TRUE;
+            //use_norm = TRUE;
             fscanf(fp,"%s %s %s",xs,ys,zs);
             // fprintf(stderr,"n %d  %s %s %s\n",k,xs,ys,zs); fflush(stderr);
             normal[inorm].x = atof(xs);
@@ -310,15 +313,20 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
          }
 
          // set the node's normals here, if they were read in
-         new_tri->use_norm = use_norm;
-         if (use_norm) {
-            for (int j=0; j<3; j++) {
-               int jj = norm_index[j];
-               new_tri->norm[j].x = normal[jj].x;
-               new_tri->norm[j].y = normal[jj].y;
-               new_tri->norm[j].z = normal[jj].z;
+         for (int j=0; j<3; j++) {
+            int targetj = j;
+            if (invert) targetj = 2-j;
+
+            if (norm_index[j] < 1) {
+               new_tri->norm[targetj] = NULL;
+            } else {
+               new_norm = add_to_norms_list(&num_norms,&normal[norm_index[j]-1],&normbin);
+               new_tri->norm[targetj] = new_norm;
             }
-            use_norm = FALSE;
+            //int jj = norm_index[j];
+            //new_tri->norm[j].x = normal[jj].x;
+            //new_tri->norm[j].y = normal[jj].y;
+            //new_tri->norm[j].z = normal[jj].z;
          }
 
          // set the adjacent triangle and midpoint pointers to NULL
@@ -366,16 +374,19 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
    int i,j,icnt;
    int num_tri = 0;
    int num_nodes = 0;
+   int num_norms = 0;
    //char onechar;
    char twochar[2];
    char sbuf[512];
    char d[18][32];
-   VEC location,nmin,nmax;
+   VEC location,normal,nmin,nmax;
    double temp[18];
    node_ptr new_node;
+   norm_ptr new_norm;
    //tri_pointer tri_head = NULL;
    tri_pointer new_tri = NULL;
    BIN nodebin;
+   NBIN normbin;
    //long int fpos;
    FILE *fp;
 
@@ -435,6 +446,7 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
    //nodebin.start = nmin.x - 0.5*nodebin.dx;
    //for (i=0;i<BIN_COUNT;i++) nodebin.b[i] = NULL;
    (void) prepare_node_bin (&nodebin,nmin,nmax);
+   (void) prepare_norm_bin (&normbin);
  
  
    // open the file for reading
@@ -503,18 +515,28 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
 
          // currently not supported (j<=9 in here)
          if ((int)isdigit(d[9][0]) || d[9][0] == '+' || d[9][0] == '-') {
-            new_tri->norm[0].x = temp[9];
-            new_tri->norm[0].y = temp[10];
-            new_tri->norm[0].z = temp[11];
-            new_tri->norm[1].x = temp[12];
-            new_tri->norm[1].y = temp[13];
-            new_tri->norm[1].z = temp[14];
-            new_tri->norm[2].x = temp[15];
-            new_tri->norm[2].y = temp[16];
-            new_tri->norm[2].z = temp[17];
-            new_tri->use_norm = TRUE;
+            normal.x = temp[9];
+            normal.y = temp[10];
+            normal.z = temp[11];
+            new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+            new_tri->norm[0] = new_norm;
+
+            normal.x = temp[12];
+            normal.y = temp[13];
+            normal.z = temp[14];
+            new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+            new_tri->norm[1] = new_norm;
+
+            normal.x = temp[15];
+            normal.y = temp[16];
+            normal.z = temp[17];
+            new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+            new_tri->norm[2] = new_norm;
+
          } else {
-            new_tri->use_norm = FALSE;
+            new_tri->norm[0] = NULL;
+            new_tri->norm[1] = NULL;
+            new_tri->norm[2] = NULL;
          }
 
          //if (fabs(new_tri->norm[2].x) < 1.e-5 &&
@@ -565,16 +587,19 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
    int i,j,icnt,err;
    int num_tri = 0;
    int num_nodes = 0;
+   int num_norms = 0;
    char onechar;
    char twochar[2];
    char sbuf[256];
    char xs[20];
-   VEC location,nmin,nmax;
+   VEC location,normal,nmin,nmax;
    double temp[9];
    node_ptr new_node;
+   norm_ptr new_norm;
    //tri_pointer tri_head = NULL;
    tri_pointer new_tri = NULL;
    BIN nodebin;
+   NBIN normbin;
    //long int fpos;
    FILE *fp;
 
@@ -658,6 +683,7 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
    //nodebin.start = nmin.x - 0.5*nodebin.dx;
    //for (i=0;i<BIN_COUNT;i++) nodebin.b[i] = NULL;
    (void) prepare_node_bin (&nodebin,nmin,nmax);
+   (void) prepare_norm_bin (&normbin);
  
  
    // open the file for reading
@@ -710,16 +736,23 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
 
             // if there is an active tri, save the normals
             if (new_tri) {
-               new_tri->norm[0].x = temp[0];
-               new_tri->norm[0].y = temp[1];
-               new_tri->norm[0].z = temp[2];
-               new_tri->norm[1].x = temp[3];
-               new_tri->norm[1].y = temp[4];
-               new_tri->norm[1].z = temp[5];
-               new_tri->norm[2].x = temp[6];
-               new_tri->norm[2].y = temp[7];
-               new_tri->norm[2].z = temp[8];
-               new_tri->use_norm = TRUE;
+               normal.x = temp[0];
+               normal.y = temp[1];
+               normal.z = temp[2];
+               new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+               new_tri->norm[0] = new_norm;
+
+               normal.x = temp[3];
+               normal.y = temp[4];
+               normal.z = temp[5];
+               new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+               new_tri->norm[1] = new_norm;
+
+               normal.x = temp[6];
+               normal.y = temp[7];
+               normal.z = temp[8];
+               new_norm = add_to_norms_list(&num_norms,&normal,&normbin);
+               new_tri->norm[2] = new_norm;
             }
 
          // set the triangle
@@ -789,7 +822,6 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
 
 /*
  * Read in a GMSH Mesh (.msh) file
- *
  */
 tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
 
@@ -900,7 +932,7 @@ tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
 #endif
          }
 
-         new_tri->use_norm = FALSE;
+         //new_tri->use_norm = FALSE;
 
          // set the adjacent triangle and midpoint pointers to NULL
          for (j=0; j<3; j++) {
@@ -971,7 +1003,7 @@ int write_output(tri_pointer head, char format[4], int keep_norms, int argc, cha
 /*
  * Write out a RAW file
  */
-int write_raw(tri_pointer head, int keep_norms) {
+int write_raw (tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -988,9 +1020,9 @@ int write_raw(tri_pointer head, int keep_norms) {
          fprintf(stdout,"%lf %lf %lf ",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
       }
       // and the node normals
-      if (keep_norms && curr_tri->use_norm) {
-         for (i=0; i<3; i++) {
-            fprintf(stdout,"%lf %lf %lf ",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
+      for (i=0; i<3; i++) {
+         if (keep_norms && curr_tri->norm[i]) {
+            fprintf(stdout,"%lf %lf %lf ",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
          }
       }
       fprintf(stdout,"\b\n");
@@ -1010,7 +1042,7 @@ int write_raw(tri_pointer head, int keep_norms) {
 /*
  * Write out a TIN file
  */
-int write_tin(tri_pointer head, int keep_norms) {
+int write_tin (tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1023,10 +1055,10 @@ int write_tin(tri_pointer head, int keep_norms) {
    while (curr_tri) {
 
       /* write the node normals */
-      if (keep_norms && curr_tri->use_norm) {
+      if (keep_norms && curr_tri->norm[0] && curr_tri->norm[1] && curr_tri->norm[2]) {
          fprintf(stdout,"n");
          for (i=0; i<3; i++) {
-            fprintf(stdout," %lf %lf %lf",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
+            fprintf(stdout," %lf %lf %lf",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
          }
          fprintf(stdout,"\n");
       }
@@ -1058,11 +1090,10 @@ int write_tin(tri_pointer head, int keep_norms) {
  */
 int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
 
-   int use_compact = TRUE;
-   int i,cnt;
    int tri_ct = 0;
    int node_ct = 1;
    int norm_ct = 0;
+   int normid[3];
    // int normal_ct = 0;
    // node_ptr curr_node = node_head;
    tri_pointer curr_tri = head;
@@ -1070,80 +1101,29 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
    fprintf(stderr,"Writing triangles in Wavefront .obj format to stdout\n");
    fflush(stderr);
    fprintf(stdout,"# Triangle mesh written from rocktools\n#");
-   for (i=0; i<argc; i++) {
+   for (int i=0; i<argc; i++) {
       fprintf(stdout," %s",argv[i]);
    }
-   fprintf(stdout,"\n\no tri_mesh\n");
+   fprintf(stdout,"\no tri_mesh\n");
 
-   // write either a compact notation or a clunky full notation
-   if (use_compact) {
-
-      // set all node indexes to -1
-      curr_tri = head;
-      while (curr_tri) {
-         // fprintf(stderr,"tri %d\n",curr_tri->index); fflush(stderr);
-         // for (i=0; i<3; i++) fprintf(stderr,"  node %d\n",curr_tri->node[i]->index); fflush(stderr);
-         for (i=0; i<3; i++) curr_tri->node[i]->index = -1;
-         curr_tri = curr_tri->next_tri;
-      }
-
-      // march through all triangles, writing nodes as they appear, 
-      //    and setting indexes as they appear
-      curr_tri = head;
-      node_ct = 1;
-      while (curr_tri) {
-         for (i=0; i<3; i++) {
-            if (curr_tri->node[i]->index == -1) {
-               // this node has not appeared, write it!
-               if (isnan(curr_tri->node[i]->loc.x) ||
-                   isnan(curr_tri->node[i]->loc.y) ||
-                   isnan(curr_tri->node[i]->loc.z)) {
-                 curr_tri->node[i]->loc.x = curr_tri->node[i%3]->loc.x;
-                 curr_tri->node[i]->loc.y = curr_tri->node[i%3]->loc.y;
-                 curr_tri->node[i]->loc.z = curr_tri->node[i%3]->loc.z;
-               }
-               fprintf(stdout,"v %12.7e %12.7e %12.7e\n",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
-               // and set the index
-               curr_tri->node[i]->index = node_ct;
-               node_ct++;
-            }
-         }
-         // and write the tri itself
-         if (keep_norms && curr_tri->use_norm) {
-            // check for degeneracy!
-            // write the unique nodes
-            for (i=0; i<3; i++) {
-               if (fabs(curr_tri->norm[i].x + curr_tri->norm[i].y + curr_tri->norm[i].z) < 1.e-6) curr_tri->norm[i].z = 1.;
-               if (isnan(curr_tri->norm[i].x)) {
-                   curr_tri->norm[i].x = 0.;
-                   curr_tri->norm[i].y = 0.;
-                   curr_tri->norm[i].z = 1.;
-               }
-               fprintf(stdout,"vn %12.7e %12.7e %12.7e\n",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
-               norm_ct++;
-            }
-            //fprintf(stdout,"f %d//%d %d//%d %d//%d\n",curr_tri->node[0]->index,curr_tri->node[0]->index,curr_tri->node[1]->index,curr_tri->node[1]->index,curr_tri->node[2]->index,curr_tri->node[2]->index);
-            fprintf(stdout,"f %d//%d %d//%d %d//%d\n",curr_tri->node[0]->index,norm_ct-2,curr_tri->node[1]->index,norm_ct-1,curr_tri->node[2]->index,norm_ct);
-         } else {
-            fprintf(stdout,"f %d %d %d\n",curr_tri->node[0]->index,curr_tri->node[1]->index,curr_tri->node[2]->index);
-         }
-         tri_ct++;
-         curr_tri = curr_tri->next_tri;
-      }
-
-   } else {
-
-   /* run thru the triangle list and write them out */
+   // set all node and norm indexes to -1
+   curr_tri = head;
    while (curr_tri) {
+      // fprintf(stderr,"tri %d\n",curr_tri->index); fflush(stderr);
+      // for (i=0; i<3; i++) fprintf(stderr,"  node %d\n",curr_tri->node[i]->index); fflush(stderr);
+      for (int i=0; i<3; i++) curr_tri->node[i]->index = -1;
+      for (int i=0; i<3; i++) if (curr_tri->node[i] != NULL) curr_tri->node[i]->index = -1;
+      curr_tri = curr_tri->next_tri;
+   }
 
-      cnt = tri_ct*3 + 1;
-
-      /* use normal information or not */
-      if (keep_norms && curr_tri->use_norm) {
-         // check for degeneracy!
-         if (fabs(curr_tri->norm[i].x + curr_tri->norm[i].y + curr_tri->norm[i].z) < 1.e-6) curr_tri->norm[i].z = 1.;
-         /* write the node normals and locations */
-         for (i=0; i<3; i++) {
+   // march through all triangles, writing nodes as they appear, 
+   //    and setting indexes as they appear
+   curr_tri = head;
+   node_ct = 1;
+   while (curr_tri) {
+      for (int i=0; i<3; i++) {
+         if (curr_tri->node[i]->index == -1) {
+            // this node has not appeared, write it!
             if (isnan(curr_tri->node[i]->loc.x) ||
                 isnan(curr_tri->node[i]->loc.y) ||
                 isnan(curr_tri->node[i]->loc.z)) {
@@ -1152,27 +1132,43 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
               curr_tri->node[i]->loc.z = curr_tri->node[i%3]->loc.z;
             }
             fprintf(stdout,"v %12.7e %12.7e %12.7e\n",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
-            fprintf(stdout,"vn %12.7e %12.7e %12.7e\n",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
+            // and set the index
+            curr_tri->node[i]->index = node_ct;
+            node_ct++;
          }
-
-         /* write the face */
-         fprintf(stdout,"f %d//%d %d//%d %d//%d\n\n",cnt,cnt,cnt+1,cnt+1,cnt+2,cnt+2);
-         /* face syntax in .obj file: f 45//126 45//126 45//126  Its v//vn */
-
-      } else {
-         /* write the node locations */
-         for (i=0; i<3; i++) {
-            fprintf(stdout,"v %g %g %g\n",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
-         }
-
-         /* write the face */
-         fprintf(stdout,"f %d %d %d\n\n",cnt,cnt+1,cnt+2);
-         /* face syntax in .obj file: f 45 46 47 */
       }
+
+      // write any valid normals
+      if (keep_norms) {
+         // write the unique norms
+         for (int i=0; i<3; i++) {
+            normid[i] = 0;
+            if (curr_tri->norm[i] != NULL) {
+               if (curr_tri->norm[i]->index == -1 &&
+                  !isnan(curr_tri->norm[i]->norm.x) &&
+                  !isnan(curr_tri->norm[i]->norm.y) &&
+                  !isnan(curr_tri->norm[i]->norm.z)) {
+                  // this node has not appeared and is not nan, write it!
+                  fprintf(stdout,"vn %12.7e %12.7e %12.7e\n",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
+                  norm_ct++;
+                  normid[i] = norm_ct;
+               }
+            }
+         }
+      } else {
+            for (int i=0; i<3; i++) normid[i] = 0;
+      }
+
+      // and write the tri itself
+      fprintf(stdout,"f");
+      for (int i=0; i<3; i++) {
+         fprintf(stdout," %d",curr_tri->node[i]->index);
+         if (normid[i] > 0) fprintf(stdout,"//%d",normid[i]);
+      }
+      fprintf(stdout,"\n");
 
       tri_ct++;
       curr_tri = curr_tri->next_tri;
-   }
    }
 
    fprintf(stderr,"Wrote Wavefront ASCII information, %d triangles\n",tri_ct);
@@ -1183,7 +1179,7 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
 /*
  * Write out POV-readable syntax
  */
-int write_pov(tri_pointer head, int keep_norms) {
+int write_pov (tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1196,17 +1192,16 @@ int write_pov(tri_pointer head, int keep_norms) {
    /* run thru the triangle list and write them out */
    while (curr_tri) {
 
-      if (keep_norms && curr_tri->use_norm) {
+      if (keep_norms && curr_tri->norm[0] && curr_tri->norm[1] && curr_tri->norm[2]) {
 
          /* write the triangle with surface normals defined */
          fprintf(stdout,"smooth_triangle {\n");
          for (i=0; i<2; i++) {
             fprintf(stdout,"   <%g, %g, %g>",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
-            fprintf(stdout,", <%g, %g, %g>,\n",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
+            fprintf(stdout,", <%g, %g, %g>",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
+            if (i!=2) fprintf(stdout,",");
+            fprintf(stdout,"\n");
          }
-         i = 2;
-         fprintf(stdout,"   <%g, %g, %g>",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
-         fprintf(stdout,", <%g, %g, %g>\n",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
          fprintf(stdout,"}\n");
 
       } else {
@@ -1237,7 +1232,7 @@ int write_pov(tri_pointer head, int keep_norms) {
 /*
  * Write out Radiance-readable syntax
  */
-int write_rad(tri_pointer head, int keep_norms) {
+int write_rad (tri_pointer head, int keep_norms) {
 
    int i;
    int num = 0;
@@ -1321,10 +1316,10 @@ int write_rib(tri_pointer head, int keep_norms) {
          fprintf(stdout," %g %g %g",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
       }
 
-      if (keep_norms && curr_tri->use_norm) {
+      if (keep_norms && curr_tri->norm[0] && curr_tri->norm[1] && curr_tri->norm[2]) {
          fprintf(stdout,"] \"N\" [");
          for (i=2; i>-1; i--) {
-            fprintf(stdout," %g %g %g",curr_tri->norm[i].x,curr_tri->norm[i].y,curr_tri->norm[i].z);
+            fprintf(stdout," %g %g %g",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
          }
       }
 
@@ -1361,9 +1356,7 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
    char sbuf[128];
    char xs[20],ys[20],zs[20];
    char extension[4];		/* filename extension if infile */
-   char normal_string[512];
    tri_pointer the_tri;
-   node_ptr the_nodes[3];
    FILE *ifp;
 
    (*num_nodes) = 0;
@@ -1398,10 +1391,8 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
 
    // Set up memory space for the working triangle, and the three nodes
    the_tri = (TRI *)malloc(sizeof(TRI));
-   for (i=0; i<3; i++) {
-      the_nodes[i] = (NODE *)malloc(sizeof(NODE));
-      the_tri->node[i] = the_nodes[i];
-   }
+   for (i=0; i<3; i++) the_tri->node[i] = (NODE *)malloc(sizeof(NODE));
+   for (i=0; i<3; i++) the_tri->norm[i] = (NORM *)malloc(sizeof(NORM));
 
    // Open the file for reading
    ifp = fopen(infile,"r");
@@ -1417,7 +1408,7 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
    if (input_format < 4) {
 
    // as long as there are triangles available, operate
-   while (get_tri(ifp,input_format,the_tri,normal_string) == 1) {
+   while (get_tri(ifp,input_format,the_tri) == 1) {
 
       (*num_tris)++;
 
@@ -1463,26 +1454,19 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
             if (test.x < bmin->x) bmin->x = test.x;
             if (test.y < bmin->y) bmin->y = test.y;
             if (test.z < bmin->z) bmin->z = test.z;
-            fscanf(ifp,"%[^\n]",sbuf);   // read line up to newline
-            fscanf(ifp,"%[\n]",twochar); // read newline
             (*num_nodes)++;
          } else {
             // if its not identifiable, skip it, do not scale, do not write
-            fscanf(ifp,"%[^\n]",sbuf);   // read line up to newline
-            fscanf(ifp,"%[\n]",twochar); // read newline
          }
       } else if (onechar == 'f') {
          // read a triangle line
-         fscanf(ifp,"%[^\n]",sbuf);   // read line up to newline
-         fscanf(ifp,"%[\n]",twochar); // read newline
          (*num_tris)++;
          // print a dot every DOTPER triangles
          if ((*num_tris)/DOTPER == ((*num_tris)+DPMO)/DOTPER) fprintf(stderr,".");
-      } else {
-         // if its not identifiable, skip it, do not scale, do not write
-         fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
-         fscanf(ifp,"%[\n]",twochar);    // read newline
       }
+      // if its not identifiable, skip it, do not scale, do not write
+      fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
+      fscanf(ifp,"%[\n]",twochar);    // read newline
    }
    fprintf(stderr,"\n");
 
@@ -1497,7 +1481,7 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
  * get_tri will read the appropriate format input file 
  * for the neccesary data on the next triangle
  */
-int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals[512]) {
+int get_tri(FILE *input, int input_format, tri_pointer current_tri) {
 
    /* int have_normals = 0; */
    char first_token[32];
@@ -1506,9 +1490,10 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals
    char d[18][32];
    char k[3][32];
 
-   /* if no normals are set, the first character will be a space */
-   normals[0] = ' ';
-   // no, let's use the current_tri->use_norm logical instead!
+   // free any memory associated with the normals
+   for (int i=0; i<3; i++) {
+      if (current_tri->norm[i] != NULL) free(current_tri->norm[i]);
+   }
 
    /* read a line from the input file */
    while (fscanf(input,"%[^\n]",sbuf) != EOF) {
@@ -1539,21 +1524,20 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals
             current_tri->node[2]->loc.z = atof(d[8]);
 
             if ((int)isdigit(d[9][0]) || d[9][0] == '+' || d[9][0] == '-') {
-              current_tri->norm[0].x = atof(d[9]);
-              current_tri->norm[0].y = atof(d[10]);
-              current_tri->norm[0].z = atof(d[11]);
-              current_tri->norm[1].x = atof(d[12]);
-              current_tri->norm[1].y = atof(d[13]);
-              current_tri->norm[1].z = atof(d[14]);
-              current_tri->norm[2].x = atof(d[15]);
-              current_tri->norm[2].y = atof(d[16]);
-              current_tri->norm[2].z = atof(d[17]);
-              current_tri->use_norm = TRUE;
-              fprintf(stderr,"  found norm %g %g\n",current_tri->norm[0].x,current_tri->norm[0].y);
-            } else {
-              current_tri->use_norm = FALSE;
+              current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
+              current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
+              current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
+              current_tri->norm[0]->norm.x = atof(d[9]);
+              current_tri->norm[0]->norm.y = atof(d[10]);
+              current_tri->norm[0]->norm.z = atof(d[11]);
+              current_tri->norm[1]->norm.x = atof(d[12]);
+              current_tri->norm[1]->norm.y = atof(d[13]);
+              current_tri->norm[1]->norm.z = atof(d[14]);
+              current_tri->norm[2]->norm.x = atof(d[15]);
+              current_tri->norm[2]->norm.y = atof(d[16]);
+              current_tri->norm[2]->norm.z = atof(d[17]);
+              //fprintf(stderr,"  found norm %g %g\n",current_tri->norm[0].x,current_tri->norm[0].y);
             }
-
             fscanf(input,"%[\n]",twochar);	/* read newline */
 
             /* we have the triangle, now jump out of the "while" */
@@ -1586,9 +1570,23 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals
 
          } else if (first_token[0] == 'n') {
             /* read the list of surface normal vectors */
-            strcpy(normals,sbuf);		/* save normals to a string, including 'n' */
+            sscanf(sbuf,"%s %s %s %s %s %s %s %s %s %s",k[0],d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]);
             fscanf(input,"%[\n]",twochar);	/* read newline */
-            /* have_normals = 1; */
+            /* fprintf(stderr,"z-values are %s %s %s\n",d[2],d[5],d[8]); */
+
+            /* assign values to triangle */
+            current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
+            current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
+            current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
+            current_tri->norm[0]->norm.x = atof(d[0]);
+            current_tri->norm[0]->norm.y = atof(d[1]);
+            current_tri->norm[0]->norm.z = atof(d[2]);
+            current_tri->norm[1]->norm.x = atof(d[3]);
+            current_tri->norm[1]->norm.y = atof(d[4]);
+            current_tri->norm[1]->norm.z = atof(d[5]);
+            current_tri->norm[2]->norm.x = atof(d[6]);
+            current_tri->norm[2]->norm.y = atof(d[7]);
+            current_tri->norm[2]->norm.z = atof(d[8]);
 
          } else {
             // read a comment line, or some other descriptor
@@ -1639,7 +1637,7 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri, char normals
  * write_tri will write the current triangle to the appropriate
  * output file format specified.
  */
-int write_tri(FILE *output, int output_format, tri_pointer current_tri, char normals[512]) {
+int write_tri(FILE *output, int output_format, tri_pointer current_tri) {
 
    if (output_format == 1) {
 
@@ -1648,11 +1646,11 @@ int write_tri(FILE *output, int output_format, tri_pointer current_tri, char nor
          current_tri->node[0]->loc.x,current_tri->node[0]->loc.y,current_tri->node[0]->loc.z,
          current_tri->node[1]->loc.x,current_tri->node[1]->loc.y,current_tri->node[1]->loc.z,
          current_tri->node[2]->loc.x,current_tri->node[2]->loc.y,current_tri->node[2]->loc.z);
-      if (current_tri->use_norm) {
+      if (current_tri->norm[0] && current_tri->norm[1] && current_tri->norm[2]) {
          fprintf(output," %g %g %g %g %g %g %g %g %g\n",
-           current_tri->norm[0].x,current_tri->norm[0].y,current_tri->norm[0].z,
-           current_tri->norm[1].x,current_tri->norm[1].y,current_tri->norm[1].z,
-           current_tri->norm[2].x,current_tri->norm[2].y,current_tri->norm[2].z);
+           current_tri->norm[0]->norm.x,current_tri->norm[0]->norm.y,current_tri->norm[0]->norm.z,
+           current_tri->norm[1]->norm.x,current_tri->norm[1]->norm.y,current_tri->norm[1]->norm.z,
+           current_tri->norm[2]->norm.x,current_tri->norm[2]->norm.y,current_tri->norm[2]->norm.z);
       } else {
          fprintf(output,"\n");
       }
@@ -1660,18 +1658,15 @@ int write_tri(FILE *output, int output_format, tri_pointer current_tri, char nor
    } else if (output_format == 2) {
 
       /* write the triangle in .tin format */
-      //if (normals[0] == 'n') {
-      //   fprintf(stdout,"%s\n",normals);
-      //}
       fprintf(output,"t %g %g %g %g %g %g %g %g %g\n",
          current_tri->node[0]->loc.x,current_tri->node[0]->loc.y,current_tri->node[0]->loc.z,
          current_tri->node[1]->loc.x,current_tri->node[1]->loc.y,current_tri->node[1]->loc.z,
          current_tri->node[2]->loc.x,current_tri->node[2]->loc.y,current_tri->node[2]->loc.z);
-      if (current_tri->use_norm) {
+      if (current_tri->norm[0] && current_tri->norm[1] && current_tri->norm[2]) {
          fprintf(output,"n %g %g %g %g %g %g %g %g %g\n",
-           current_tri->norm[0].x,current_tri->norm[0].y,current_tri->norm[0].z,
-           current_tri->norm[1].x,current_tri->norm[1].y,current_tri->norm[1].z,
-           current_tri->norm[2].x,current_tri->norm[2].y,current_tri->norm[2].z);
+           current_tri->norm[0]->norm.x,current_tri->norm[0]->norm.y,current_tri->norm[0]->norm.z,
+           current_tri->norm[1]->norm.x,current_tri->norm[1]->norm.y,current_tri->norm[1]->norm.z,
+           current_tri->norm[2]->norm.x,current_tri->norm[2]->norm.y,current_tri->norm[2]->norm.z);
       }
 
 

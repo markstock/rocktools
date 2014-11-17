@@ -33,8 +33,8 @@
 #include <ctype.h>
 #include "structs.h"
 
-
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 int num_tri = 0;
 

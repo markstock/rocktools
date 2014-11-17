@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004,2006-8  Mark J. Stock
+ * Copyright (C) 1999,2004,2006-8,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,11 +37,10 @@
 
 /* This needs to be here to use routines in utils.c */
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 double find_area(tri_pointer);
 int Usage(char[80],int);
-extern int get_tri(FILE*, int, tri_pointer, char[512]);
-extern int write_tri(FILE*, int, tri_pointer, char[512]);
 
 int main(int argc,char **argv) {
 
@@ -80,7 +79,6 @@ int main(int argc,char **argv) {
    char extension[4];		/* filename extension if infile */
    char output_string[4] = "raw"; /* format extension for the output */
    char progname[80];		/* name of binary executable */
-   char normal_string[512];
    tri_pointer the_tri,ttri1,ttri2;
    node_ptr the_nodes[3],tnode1,tnode2;
    FILE *ifp;
@@ -189,7 +187,7 @@ int main(int argc,char **argv) {
 
 
    /* as long as there are triangles available, operate */
-   while (get_tri(ifp,input_format,the_tri,normal_string) == 1) {
+   while (get_tri(ifp,input_format,the_tri) == 1) {
 
       num_read++;
       keep_tri = FALSE;
@@ -340,12 +338,12 @@ int main(int argc,char **argv) {
       /* if the triangle survived the battery of tests, print it */
       if (keep_tri) {
          /* Keep the triangle wholly */
-         write_tri(stdout,output_format,the_tri,normal_string);
+         write_tri(stdout,output_format,the_tri);
          num_wrote++;
 
       } else if (trim_tri) {
          /* Keep only part of the triangle */
-         /* trim_tri(stdout,output_format,the_tri,node_is_good,normal_string,num_wrote); */
+         /* trim_tri(stdout,output_format,the_tri,node_is_good,num_wrote); */
          /* v3 is the index of the odd node */
          vn3 = -1;
          if (node_is_good[0] == node_is_good[1]) vn3 = 2;
@@ -407,11 +405,11 @@ int main(int argc,char **argv) {
             if (use_a_min) {
                tri_area = find_area(ttri1);
                if (tri_area > a_min) {
-                  write_tri(stdout,output_format,ttri1,normal_string);
+                  write_tri(stdout,output_format,ttri1);
                   num_wrote++;
                }
             } else {
-               write_tri(stdout,output_format,ttri1,normal_string);
+               write_tri(stdout,output_format,ttri1);
                num_wrote++;
             }
 
@@ -428,17 +426,17 @@ int main(int argc,char **argv) {
             if (use_a_min) {
                tri_area = find_area(ttri1);
                if (tri_area > a_min) {
-                  write_tri(stdout,output_format,ttri1,normal_string);
+                  write_tri(stdout,output_format,ttri1);
                   num_wrote++;
                }
                tri_area = find_area(ttri2);
                if (tri_area > a_min) {
-                  write_tri(stdout,output_format,ttri2,normal_string);
+                  write_tri(stdout,output_format,ttri2);
                   num_wrote++;
                }
             } else {
-               write_tri(stdout,output_format,ttri1,normal_string);
-               write_tri(stdout,output_format,ttri2,normal_string);
+               write_tri(stdout,output_format,ttri1);
+               write_tri(stdout,output_format,ttri2);
                num_wrote+=2;
             }
          }
@@ -465,14 +463,14 @@ int main(int argc,char **argv) {
  */
 /*
 int trim_tri(FILE *out,int output_format,tri_pointer the_tri,
-   node_ptr the_nodes[3],int node_good[3],char normal_string[512],
+   node_ptr the_nodes[3],int node_good[3],
    int num_wrote) {
 
    if (1==1) then {
-      write_tri(out,output_format,the_tri,normal_string);
+      write_tri(out,output_format,the_tri);
    } else {
-      write_tri(out,output_format,the_tri,normal_string);
-      write_tri(out,output_format,the_other_tri,normal_string);
+      write_tri(out,output_format,the_tri);
+      write_tri(out,output_format,the_other_tri);
    }
 }
 */

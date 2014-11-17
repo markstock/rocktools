@@ -5,7 +5,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-13  Mark J. Stock
+ * Copyright (C) 2004-14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,8 @@
 #include "structs.h"
 
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
+
 extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,char*,int);
 int Usage(char[80],int);
 

@@ -57,6 +57,7 @@ typedef struct three_d_vector {
  * Pointers to the two types of data structures below
  */
 typedef struct node_record *node_ptr;
+typedef struct norm_record *norm_ptr;
 typedef struct tri_record *tri_pointer;
 
 
@@ -94,13 +95,27 @@ typedef struct node_record {
 
 
 /*
+ * A data structure definition of a normal vector, shared by an
+ * arbitrary number of triangles
+ */
+typedef struct norm_record {
+   int index;			/* index of the normal */
+   VEC norm;			/* normal vector */
+
+   norm_ptr next_bnorm;		// next norm in the bin
+   norm_ptr next_norm;
+} NORM;
+
+
+/*
  * A data structure definition of a single triangle
  */
 typedef struct tri_record {
    int index;			/* index of the node */
    node_ptr node[3];		/* pointer to the three nodes, CCW */
-   int use_norm;		/* use the normals? 0=no, 1=yes, alt usage in rockdetail */
-   VEC norm[3];			/* surface normal vectors at the nodes */
+   //int use_norm;		/* use the normals? 0=no, 1=yes, alt usage in rockdetail */
+   //VEC norm[3];			/* surface normal vectors at the nodes */
+   norm_ptr norm[3];		/* surface normal vectors at the nodes */
    tri_pointer adjacent[3];	/* pointers to the three adjacent triangles */
  				/* adjacent[0] refers to edge between node[0] and node[1] */
 
@@ -124,6 +139,15 @@ typedef struct bin_record {
    double start,dx;		// starting point and bin size
    node_ptr b[BIN_COUNT];	// the bins
 } BIN;
+
+/*
+ * structure for a binning system for normals
+ */
+typedef struct nbin_record *nbin_ptr;
+typedef struct nbin_record {
+   double start,dx;		// starting point and bin size
+   norm_ptr b[BIN_COUNT];	// the bins
+} NBIN;
 
 
 /*
@@ -166,8 +190,10 @@ typedef struct marker_record {
  * All extern declarations used by utils.c, inout.c
  */
 extern node_ptr node_head;
+extern norm_ptr norm_head;
 
 extern node_ptr add_to_nodes_list(tri_pointer,int*,int,VEC*,bin_ptr);
+extern norm_ptr add_to_norms_list(int*,VEC*,nbin_ptr);
 extern int add_conn_tri (node_ptr, tri_pointer, int);
 extern int set_adjacent_tris(tri_pointer);
 extern int fix_orientation(tri_pointer);
@@ -185,6 +211,7 @@ extern VEC from(VEC,VEC);
 extern VEC plus(VEC,VEC);
 extern VEC midpt(VEC,VEC);
 extern VEC norm(VEC);
+extern void norm3(double*);
 extern double length(VEC);
 extern double lengthsq(VEC);
 extern double find_tri_dist(tri_pointer,VEC);
@@ -193,13 +220,14 @@ extern VEC find_normal(VEC,VEC,VEC);
 extern double dot(VEC,VEC);
 extern double theta(VEC,VEC);
 extern void prepare_node_bin(bin_ptr,VEC,VEC);
+extern void prepare_norm_bin(nbin_ptr);
 extern float** allocate_2d_array_f(int,int);
 extern int free_2d_array_f(float**);
 extern tri_pointer read_input(char*,int,tri_pointer);
 extern int write_output(tri_pointer,char*,int,int,char**);
 extern int find_mesh_stats(char *,VEC*,VEC*,int*,int*);
-extern int get_tri(FILE*,int,tri_pointer,char*);
-extern int write_tri(FILE*,int,tri_pointer,char*);
+extern int get_tri(FILE*,int,tri_pointer);
+extern int write_tri(FILE*,int,tri_pointer);
 extern int inside_bounds(double,double,double);
 
 /* end */

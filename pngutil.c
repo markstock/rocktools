@@ -879,7 +879,6 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
    new_tri = (TRI *)malloc(sizeof(TRI));
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
-   new_tri->use_norm = FALSE;
    for (k=0; k<3; k++) {
       new_tri->adjacent[k] = NULL;
       new_tri->midpoint[k] = NULL;
@@ -902,7 +901,6 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
    new_tri = (TRI *)malloc(sizeof(TRI));
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
-   new_tri->use_norm = FALSE;
    for (k=0; k<3; k++) {
       new_tri->adjacent[k] = NULL;
       new_tri->midpoint[k] = NULL;

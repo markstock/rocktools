@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004-06  Mark J. Stock
+ * Copyright (C) 1999,2004-06,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@
 
 /* some essential global variables */
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 int num_tri = 0;
 

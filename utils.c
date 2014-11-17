@@ -36,6 +36,7 @@
 int count_nodes();
 int set_node_connectivity();
 node_ptr add_to_nodes_list(tri_pointer,int*,int,VEC*,bin_ptr);
+norm_ptr add_to_norms_list(int*,VEC*,nbin_ptr);
 VEC vscale(double,VEC);
 VEC from(VEC,VEC);
 VEC plus(VEC,VEC);
@@ -133,6 +134,80 @@ node_ptr add_to_nodes_list (tri_pointer the_tri, int* num_nodes, int index, VEC*
    }
 
    return curr_node;
+}
+
+
+/*
+ * Add a normal to the list of normals - and search for close normals
+ */
+norm_ptr add_to_norms_list (int* num_norms, VEC* normal, nbin_ptr thebin) {
+
+   norm_ptr curr_norm = NULL;
+   int ibin = 0;
+   int found_match = FALSE;
+   double match_thresh = 1.e-5;     /* threshhold to match node normal */
+
+   // the normal MUST be normalized
+   double len = sqrt(normal->x*normal->x + normal->y*normal->y + normal->z*normal->z);
+   if (len > 1.e-10) {
+      normal->x /= len;
+      normal->y /= len;
+      normal->z /= len;
+   }
+
+   // first, search the list for a node close to this
+   // new way to search
+   if (thebin) {
+      // start searching only in bin ibin
+      ibin = (int)(( normal->z - thebin->start )/thebin->dx);
+
+      // fprintf(stderr,"  search in bin %d\n",ibin); fflush(stderr);
+      curr_norm = thebin->b[ibin];
+   } else {
+      // search through all nodes, starting with the head
+      curr_norm = norm_head;
+   }
+   while (curr_norm) {
+      //fprintf(stderr,"  does normal (%g %g) match node at (%g %g)? \n",(*normal).x,(*normal).y,curr_node->loc.x,curr_node->loc.y); fflush(stderr);
+      if (fabs(curr_norm->norm.x - (*normal).x) < match_thresh) {
+         if (fabs(curr_norm->norm.y - (*normal).y) < match_thresh) {
+            if (fabs(curr_norm->norm.z - (*normal).z) < match_thresh) {
+               found_match = TRUE;
+               // fprintf(stderr,"yes!\n");
+               break;
+            }
+         } else {
+            // fprintf(stderr,"no.\n");
+         }
+      } else {
+         // fprintf(stderr,"no.\n");
+      }
+      if (thebin) curr_norm = curr_norm->next_bnorm;
+      else curr_norm = curr_norm->next_norm;
+   }
+
+
+   /* did we find a match in the list of existing nodes? */
+   if (!found_match) {
+
+      /* if not, create one and add it to the list */
+      curr_norm = (NORM *)malloc(sizeof(NORM));
+      curr_norm->index = (*num_norms)++;
+      curr_norm->norm.x = (*normal).x;
+      curr_norm->norm.y = (*normal).y;
+      curr_norm->norm.z = (*normal).z;
+      // add it to the head of the full list
+      curr_norm->next_norm = norm_head;
+      norm_head = curr_norm;
+      // add it to the head of the bin's list
+      if (thebin) {
+         curr_norm->next_bnorm = thebin->b[ibin];
+         thebin->b[ibin] = curr_norm;
+      }
+      // fprintf(stderr,"  adding new norm at %g %g %g, num_conn= 1\n",normal->x,normal->y,normal->z); fflush(stderr);
+   }
+
+   return curr_norm;
 }
 
 
@@ -579,6 +654,17 @@ VEC norm(VEC v1) {
    return v1;
 }
 
+void norm3(double *v1) {
+
+   double dr = 1./sqrt(pow(v1[0],2)+pow(v1[1],2)+pow(v1[2],2));
+
+   v1[0] *= dr;
+   v1[1] *= dr;
+   v1[2] *= dr;
+
+   return;
+}
+
 
 /*
  * Returns the length of the vector
@@ -699,7 +785,6 @@ double theta(VEC pt1,VEC pt2) {
  * prepare the node_bin structure, given bounds
  */
 void prepare_node_bin (bin_ptr bin, VEC nmin, VEC nmax) {
-   int i;
 
    // split on longest axis
    if (nmax.x-nmin.x >= nmax.y-nmin.y && nmax.x-nmin.x >= nmax.z-nmin.z) {
@@ -715,7 +800,21 @@ void prepare_node_bin (bin_ptr bin, VEC nmin, VEC nmax) {
       bin->dx = (nmax.z-nmin.z)/(BIN_COUNT-1);
       bin->start = nmin.z - 0.5*bin->dx;
    }
-   for (i=0;i<BIN_COUNT;i++) bin->b[i] = NULL;
+   for (int i=0;i<BIN_COUNT;i++) bin->b[i] = NULL;
+   return;
+}
+
+
+/*
+ * prepare the norm_bin structure
+ */
+void prepare_norm_bin (nbin_ptr bin) {
+
+   // always split on z-axis
+   bin->dx = 2.0/(BIN_COUNT-1);
+   bin->start = -1.0 - 0.5*bin->dx;
+
+   for (int i=0;i<BIN_COUNT;i++) bin->b[i] = NULL;
    return;
 }
 

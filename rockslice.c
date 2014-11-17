@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004,2006-8,2013  Mark J. Stock
+ * Copyright (C) 1999,2004,2006-8,2013-4  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,10 +36,10 @@
 
 /* This needs to be here to use routines in utils.c */
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
 int Usage(char[80],int);
-extern int get_tri(FILE*, int, tri_pointer, char[512]);
 int write_seg(FILE*, char*, double, node_ptr, node_ptr, VEC*, VEC*);
 
 // from inout.c
@@ -228,17 +228,17 @@ int main(int argc,char **argv) {
          if (use_dir == y) { thresh = split_val; i = 1; }
          if (use_dir == z) { thresh = split_val; i = 2; }
 
-         if (curr->use_norm) {
+         if (curr->norm[0] && curr->norm[1] && curr->norm[2]) {
             // use splines
             // between node vn1 and vn3
             find_arc_intersection(i,thresh,
-                                  curr->node[vn1]->loc, curr->norm[vn1],
-                                  curr->node[vn3]->loc, curr->norm[vn3],
+                                  curr->node[vn1]->loc, curr->norm[vn1]->norm,
+                                  curr->node[vn3]->loc, curr->norm[vn3]->norm,
                                   &tnode1->loc,         &tnorm1);
             // between node vn2 and vn3
             find_arc_intersection(i,thresh,
-                                  curr->node[vn2]->loc, curr->norm[vn2],
-                                  curr->node[vn3]->loc, curr->norm[vn3],
+                                  curr->node[vn2]->loc, curr->norm[vn2]->norm,
+                                  curr->node[vn3]->loc, curr->norm[vn3]->norm,
                                   &tnode2->loc,         &tnorm2);
          } else {
             // use midpoint

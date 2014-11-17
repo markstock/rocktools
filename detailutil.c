@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2002-4,6  Mark J. Stock
+ * Copyright (C) 1999,2002-4,6,14  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-//#include <malloc.h>
 #include "structs.h"
 
 
@@ -987,7 +986,7 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
    fprintf(stderr,"Method 3, depth = %d\n",depth);
    j = -1; k = -1;
 
-   // count the nodes (we need this to set the index
+   // count the nodes (we need this to set the index)
    node_cnt = count_nodes();
 
    // first, compute normals for all triangles (use best method)
@@ -1784,20 +1783,20 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
  *
  * now, it also resets the normal to be the true normal
  */
-int make_sphere(tri_pointer head) {
+int make_sphere (tri_pointer head) {
 
   int i,j,cnt;
   double center[3],d[3],rad,maxrad;
   tri_pointer currt;
 
-  // set all node indexes to -1
-  currt = head;
-  while (currt) {
-    for (i=0; i<3; i++) currt->node[i]->index = -1;
-    currt = currt->next_tri;
-  }
-
   if (sphere_rad <= 0.) {
+
+    // set all node indexes to -1
+    currt = head;
+    while (currt) {
+      for (i=0; i<3; i++) currt->node[i]->index = -1;
+      currt = currt->next_tri;
+    }
 
     // find the center of the object (each node weighs 1)
     currt = head;
@@ -1839,13 +1838,6 @@ int make_sphere(tri_pointer head) {
     }
     // fprintf(stderr,"   max radius is %g\n",maxrad);
 
-    // set all node indexes to -1
-    currt = head;
-    while (currt) {
-      for (i=0; i<3; i++) currt->node[i]->index = -1;
-      currt = currt->next_tri;
-    }
-
   } else {
 
     // if a sphere radius is defined on the command-line, use it instead
@@ -1854,6 +1846,13 @@ int make_sphere(tri_pointer head) {
     center[1] = 0.;
     center[2] = 0.;
     cnt=0;
+  }
+
+  // set all node indexes to -1
+  currt = head;
+  while (currt) {
+    for (i=0; i<3; i++) currt->node[i]->index = -1;
+    currt = currt->next_tri;
   }
 
   // for each node, reset its radius only to match the max radius
@@ -1871,10 +1870,11 @@ int make_sphere(tri_pointer head) {
         currt->node[i]->loc.z = center[2] + d[2];
         currt->node[i]->index = 1;
       }
-      // also reset the normal
-      currt->norm[i] = norm(currt->node[i]->loc);
+      // also reset the normal, if there is one
+      if (currt->norm[i]) {
+        currt->norm[i]->norm = norm(currt->node[i]->loc);
+      }
     }
-    currt->use_norm = TRUE;
     currt = currt->next_tri;
   }
 
@@ -2213,7 +2213,8 @@ void move_existing_node_5 (int depth, node_ptr this) {
       // scale it by some function of its area?
 
       // perturb according to normal and depth, only
-      (void) perturb_node_5 (&(this->loc), depth, test_tri->norm[corner]);
+      // DANGER - what if a norm doesn't exist?
+      (void) perturb_node_5 (&(this->loc), depth, test_tri->norm[corner]->norm);
 
    } else {
 
@@ -2337,51 +2338,86 @@ void perturb_node_5 (VEC *loc, int depth, VEC r3) {
  */
 node_ptr create_midpoint_spline (node_ptr n1, node_ptr n2, int *node_cnt) {
 
-   int i,j,corner;
+   int corner;
    double dl[3],norm1[3],norm2[3],fp[2][3][3],p1[3],p2[3],a[4];//,len;
    node_ptr new_node = (NODE *)malloc(sizeof(NODE));
    tri_pointer this_tri = NULL;
 
    // compute the length of the edge
-   for (i=0; i<3; i++)
    dl[0] = n2->loc.x - n1->loc.x;
    dl[1] = n2->loc.y - n1->loc.y;
    dl[2] = n2->loc.z - n1->loc.z;
    //len = sqrt(dl[0]*dl[0] + dl[1]*dl[1] + dl[2]*dl[2]);
 
    // find the normals
-   this_tri = n1->conn_tri[0];
-   corner = n1->conn_tri_node[0];
-   norm1[0] = this_tri->norm[corner].x;
-   norm1[1] = this_tri->norm[corner].y;
-   norm1[2] = this_tri->norm[corner].z;
 
-   this_tri = n2->conn_tri[0];
-   corner = n2->conn_tri_node[0];
-   norm2[0] = this_tri->norm[corner].x;
-   norm2[1] = this_tri->norm[corner].y;
-   norm2[2] = this_tri->norm[corner].z;
+   // node 1
+   for (int i=0; i<3; i++) norm1[i] = 0.0;
+   for (int i=0; i<n1->num_conn; i++) {
+      this_tri = n1->conn_tri[i];
+      corner = n1->conn_tri_node[0];
+      if (this_tri->norm[corner] == NULL) {
+         // just use flat normal vector
+         VEC e1 = from(this_tri->node[0]->loc,this_tri->node[1]->loc);
+         VEC e2 = from(this_tri->node[0]->loc,this_tri->node[2]->loc);
+         VEC tri_norm = cross(e1,e2);
+         tri_norm = norm(tri_norm);
+         norm1[0] += tri_norm.x;
+         norm1[1] += tri_norm.y;
+         norm1[2] += tri_norm.z;
+      } else {
+         // weigh in this normal
+         norm1[0] += this_tri->norm[corner]->norm.x;
+         norm1[1] += this_tri->norm[corner]->norm.y;
+         norm1[2] += this_tri->norm[corner]->norm.z;
+      }
+   }
+   (void) norm3(norm1);
+
+   // node 2
+   for (int i=0; i<3; i++) norm2[i] = 0.0;
+   for (int i=0; i<n2->num_conn; i++) {
+      this_tri = n2->conn_tri[i];
+      corner = n2->conn_tri_node[0];
+      if (this_tri->norm[corner] == NULL) {
+         // just use flat normal vector
+         VEC e1 = from(this_tri->node[0]->loc,this_tri->node[1]->loc);
+         VEC e2 = from(this_tri->node[0]->loc,this_tri->node[2]->loc);
+         VEC tri_norm = cross(e1,e2);
+         tri_norm = norm(tri_norm);
+         norm2[0] += tri_norm.x;
+         norm2[1] += tri_norm.y;
+         norm2[2] += tri_norm.z;
+      } else {
+         // weigh in this normal
+         norm2[0] += this_tri->norm[corner]->norm.x;
+         norm2[1] += this_tri->norm[corner]->norm.y;
+         norm2[2] += this_tri->norm[corner]->norm.z;
+      }
+   }
+   (void) norm3(norm2);
+
 
    // compute the tangential operator for each node (P = I - nn^T)
-   for (i=0; i<3; i++) {
-      for (j=0; j<3; j++) {
+   for (int i=0; i<3; i++) {
+      for (int j=0; j<3; j++) {
          fp[0][i][j] = 0.;
          fp[1][i][j] = 0.;
       }
       fp[0][i][i] = 1.;
       fp[1][i][i] = 1.;
-      for (j=0; j<3; j++) {
+      for (int j=0; j<3; j++) {
          fp[0][i][j] -= norm1[i]*norm1[j];
          fp[1][i][j] -= norm2[i]*norm2[j];
       }
    }
    // find the vector product of each of these with dl
-   for (i=0; i<3; i++) {
+   for (int i=0; i<3; i++) {
       p1[i] = 0.;
       p2[i] = 0.;
    }
-   for (i=0; i<3; i++) {
-      for (j=0; j<3; j++) {
+   for (int i=0; i<3; i++) {
+      for (int j=0; j<3; j++) {
          p1[i] += dl[j]*fp[0][i][j];
          p2[i] += dl[j]*fp[1][i][j];
       }

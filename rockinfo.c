@@ -36,13 +36,13 @@
 
 // This needs to be here to use routines in utils.c
 node_ptr node_head = NULL;
+norm_ptr norm_head = NULL;
 
 // this subroutine appears in this file
 int Usage(char[80],int);
 
 // from inout.c
 extern int find_mesh_stats(char*, VEC*, VEC*, int*, int*);
-extern int get_tri(FILE*, int, tri_pointer, char[512]);
 
 
 int main(int argc,char **argv) {
