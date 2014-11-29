@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 
 
 /* define a C preprocessor variable so that when structs.h is included,
@@ -35,86 +36,57 @@
 #define MODULE_ROCKBOB
 #include "structs.h"
 
-// note x,y,z are reversed from what gts expects
 unsigned char*** allocate_3d_array_b(int nx, int ny, int nz) {
-   int i,j;
+
+   // allocate an array of nx pointers, one for each plane
    unsigned char ***array = (unsigned char ***)malloc(nx * sizeof(char **));
 
-   array[0] = (unsigned char **)malloc(nx * ny * sizeof(char *));
-   array[0][0] = (unsigned char *)malloc(nx * ny * nz * sizeof(char));
+   // are we dealing with more than 2B bytes?
+   // On x86-64 Linux, INT_MAX is 2147483647, LONG_MAX is 9223372036854775807
+   long int totBytes = (long int)nx * (long int)ny * (long int)nz * (long int)sizeof(char);
 
-   for (i=1; i<nx; i++)
-      array[i] = array[0] + i * ny;
+   if (totBytes > (long int)INT_MAX/2) {
+      // all data is larger than 2GB, allocate it in planes
+      fprintf(stderr,"  voxel array is plane-by-plane\n");
 
-   for (i=0; i<nx; i++) {
-      if (i!=0)
-         array[i][0] = array[0][0] + i * ny * nz;
-      for (j=1; j<ny; j++)
-         array[i][j] = array[i][0] + j * nz;
+      for (int i=0; i<nx; i++) {
+         array[i] = (unsigned char **)malloc(ny * sizeof(char *));
+         array[i][0] = (unsigned char *)malloc(ny * nz * sizeof(char));
+         for (int j=1; j<ny; j++)
+            array[i][j] = array[i][0] + j * nz;
+      }
+
+   } else {
+      // we can fit it all in one malloc (it's under 2GB)
+      fprintf(stderr,"  voxel array is monolithic\n");
+
+      array[0] = (unsigned char **)malloc(nx * ny * sizeof(char *));
+      for (int i=1; i<nx; i++)
+         array[i] = array[0] + i * ny;
+
+      array[0][0] = (unsigned char *)malloc(nx * ny * nz * sizeof(char));
+      for (int i=0; i<nx; i++) {
+         if (i!=0)
+            array[i][0] = array[0][0] + i * ny * nz;
+         for (int j=1; j<ny; j++)
+            array[i][j] = array[i][0] + j * nz;
+      }
    }
 
    return(array);
 }
 
-int free_3d_array_b(unsigned char*** array){
-   free(array[0][0]);
-   free(array[0]);
-   free(array);
-   return(0);
-}
-
-// note x,y,z are reversed from what gts expects
-unsigned short*** allocate_3d_array_s(int nx, int ny, int nz) {
-   int i,j;
-   unsigned short ***array = (unsigned short ***)malloc(nx * sizeof(short **));
-
-   array[0] = (unsigned short **)malloc(nx * ny * sizeof(short *));
-   array[0][0] = (unsigned short *)malloc(nx * ny * nz * sizeof(short));
-
-   for (i=1; i<nx; i++)
-      array[i] = array[0] + i * ny;
-
-   for (i=0; i<nx; i++) {
-      if (i!=0)
-         array[i][0] = array[0][0] + i * ny * nz;
-      for (j=1; j<ny; j++)
-         array[i][j] = array[i][0] + j * nz;
+int free_3d_array_b (unsigned char*** array, int nx, int ny, int nz){
+   long int totBytes = (long int)nx * (long int)ny * (long int)nz * (long int)sizeof(char);
+   if (totBytes > (long int)INT_MAX/2) {
+      for (int i=0; i<nx; i++) {
+         free(array[i][0]);
+         free(array[i]);
+      }
+   } else {
+      free(array[0][0]);
+      free(array[0]);
    }
-
-   return(array);
-}
-
-int free_3d_array_s(unsigned short*** array){
-   free(array[0][0]);
-   free(array[0]);
-   free(array);
-   return(0);
-}
-
-// note x,y,z are reversed from what gts expects
-float*** allocate_3d_array_f(int nx, int ny, int nz) {
-   int i,j;
-   float ***array = (float ***)malloc(nx * sizeof(float **));
-
-   array[0] = (float **)malloc(nx * ny * sizeof(float *));
-   array[0][0] = (float *)malloc(nx * ny * nz * sizeof(float));
-
-   for (i=1; i<nx; i++)
-      array[i] = array[0] + i * ny;
-
-   for (i=0; i<nx; i++) {
-      if (i!=0)
-         array[i][0] = array[0][0] + i * ny * nz;
-      for (j=1; j<ny; j++)
-         array[i][j] = array[i][0] + j * nz;
-   }
-
-   return(array);
-}
-
-int free_3d_array_f(float*** array){
-   free(array[0][0]);
-   free(array[0]);
    free(array);
    return(0);
 }
@@ -145,18 +117,14 @@ int max(int x, int y)
  */
 int write_bob_file_from_uchar(FILE* ofp, unsigned char*** z, int nx, int ny, int nz) {
 
-   int i,j,k;
-
    /* write header */
    fwrite(&nx,sizeof(int),1,ofp);
    fwrite(&ny,sizeof(int),1,ofp);
    fwrite(&nz,sizeof(int),1,ofp);
 
    /* write the data */
-   for (i=0;i<nx;i++)
-   for (j=0;j<ny;j++)
-   for (k=0;k<nz;k++) {
-      fwrite(&z[i][j][k],sizeof(unsigned char),1,ofp);
+   for (int i=0; i<nx; i++) {
+      fwrite(&z[i][0][0],sizeof(unsigned char),ny*nz,ofp);
    }
 
    /* return 0 if all went well */
@@ -490,7 +458,7 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
    fprintf(stderr,"  brick will be %d x %d x %d\n",nx,ny,nz);
 
    // sanity check on bob size
-   if (nx*(float)ny*nz > 2.1e+9 || nx > 100000 || ny > 100000 || nz > 100000) {
+   if (nx*(float)ny*nz > 1.0e+11 || nx > 100000 || ny > 100000 || nz > 100000) {
       fprintf(stderr,"Will not write brick-of-bytes file that large.\n");
       fflush(stderr);
       return(1);
@@ -586,7 +554,7 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
       (void) write_bob_file_from_uchar(ofp, dat, nx, ny, nz);
 
       // free the memory and return
-      free_3d_array_b(dat);
+      free_3d_array_b(dat, nx, ny, nz);
 
       fprintf(stderr,"\n");
       fflush(stderr);
