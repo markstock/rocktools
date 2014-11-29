@@ -166,12 +166,17 @@ int main(int argc,char **argv) {
    for (i=0; i<3; i++) {
       the_nodes[i] = (NODE *)malloc(sizeof(NODE));
       the_tri->node[i] = the_nodes[i];
+      the_tri->norm[i] = NULL;
    }
    /* these are for the nodes and triangles in case a triangle needs a corner trimmed */
    tnode1 = (NODE *)malloc(sizeof(NODE));
    tnode2 = (NODE *)malloc(sizeof(NODE));
    ttri1 = (TRI *)malloc(sizeof(TRI));
    ttri2 = (TRI *)malloc(sizeof(TRI));
+   for (i=0; i<3; i++) {
+      ttri1->norm[i] = NULL;
+      ttri2->norm[i] = NULL;
+   }
 
 
    /* Read the input file */
