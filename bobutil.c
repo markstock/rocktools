@@ -436,6 +436,22 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
            start[1],start[1]+size[1],
            start[2],start[2]+size[2]);
 
+   if (dx < 0.0) {
+      // dx wasn't set, set it here
+      if (size[0] > size[1] && size[0] > size[2]) {
+         dx = size[0] / 100.;
+      } else if (size[1] > size[0] && size[1] > size[2]) {
+         dx = size[1] / 100.;
+      } else {
+         dx = size[2] / 100.;
+      }
+   }
+
+   if (thick < 0.0) {
+      // thickness wasn't set, set it here
+      thick = 2. * dx;
+   }
+
    const double bufferSize = thick + 2.0 * dx;
 
    // determine volume bounds and resolution
