@@ -37,7 +37,7 @@
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
 
-extern int write_bob(tri_pointer,double*,double*,double*,double,double,char*);
+extern int write_bob(tri_pointer,double*,double*,double*,double,double,int,char*);
 int Usage(char[255],int);
 
 int main(int argc,char **argv) {
@@ -46,6 +46,7 @@ int main(int argc,char **argv) {
    char infile[255];				/* name of input file */
    char progname[255];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
+   int diffuseSteps = 0;			/* number of steps to diffuse */
    double dx;					/* voxel size */
    double thickness;				/* thickness of mesh, world coords */
    double xb[3],yb[3],zb[3];			/* bounds, in world units, [t/f,min,max] */
@@ -83,7 +84,7 @@ int main(int argc,char **argv) {
          zb[0] = +1.0;
          zb[1] = atof(argv[++i]);
          zb[2] = atof(argv[++i]);
-      } else if (strncmp(argv[i], "-d", 2) == 0) {
+      } else if (strncmp(argv[i], "-dx", 3) == 0) {
          dx = atof(argv[++i]);
          if (dx <= 0.0) {
             (void) Usage(progname,0);
@@ -95,6 +96,8 @@ int main(int argc,char **argv) {
             (void) Usage(progname,0);
             fprintf(stderr,"Error: -t must be positive\n");
          }
+      } else if (strncmp(argv[i], "-diffuse", 3) == 0) {
+         diffuseSteps = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
          strncpy(output_format,argv[i]+2,4);
       } else
@@ -105,7 +108,7 @@ int main(int argc,char **argv) {
    tri_head = read_input(infile,FALSE,NULL);
 
    /* Write the image to stdout */
-   (void) write_bob(tri_head,xb,yb,zb,dx,thickness,output_format);
+   (void) write_bob(tri_head,xb,yb,zb,dx,thickness,diffuseSteps,output_format);
 
    fprintf(stderr,"Done.\n");
    exit(0);
@@ -132,8 +135,11 @@ int Usage(char progname[255],int status) {
        "   -t num      thickness of the mesh in world coordinates,                 ",
        "               default is two voxels                                       ",
        "                                                                           ",
-       "   -d num      size of voxel in world coordinates,                         ",
+       "   -dx num     size of voxel in world coordinates,                         ",
        "               default is 1/100th of largest dimension                     ",
+       "                                                                           ",
+       "   -diffuse num                                                            ",
+       "               perform num diffusion/smoothing iterations (default=0)      ",
        "                                                                           ",
        "   -okey       specify output format, key= bob, bof, default = bob         ",
        "                                                                           ",

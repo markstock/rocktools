@@ -91,6 +91,22 @@ int free_3d_array_b (unsigned char*** array, int nx, int ny, int nz){
    return(0);
 }
 
+unsigned char** allocate_2d_array_b(int nx, int ny) {
+
+   unsigned char **array = (unsigned char **)malloc(nx * sizeof(unsigned char *));
+   array[0] = (unsigned char *)malloc(nx * ny * sizeof(unsigned char));
+   for (int i=1; i<nx; i++)
+      array[i] = array[0] + i * ny;
+
+   return(array);
+}
+
+int free_2d_array_b(unsigned char** array){
+   free(array[0]);
+   free(array);
+   return(0);
+}
+
 // define the possible output file types
 typedef enum output_format_type {
    noout,       // default is no output
@@ -327,7 +343,7 @@ double minimum_distance(double vx, double vy, double vz,
  * "thick" is the thickness of the mesh, in world units
  */
 int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
-      double dx, double thick, char* output_format) {
+      double dx, double thick, int diffuseSteps, char* output_format) {
 
    int nx, ny, nz;
    double start[3];
@@ -420,7 +436,8 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
       thick = 2. * dx;
    }
 
-   const double bufferSize = thick + 2.0 * dx;
+   //const double bufferSize = thick + 2.0 * dx;
+   const double bufferSize = thick + dx*(double)(2+diffuseSteps);
 
    // determine volume bounds and resolution
    if (xb[0] > 0.0) {
@@ -543,8 +560,67 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
    if (debug_write)
      fclose(debug_out);
 
-   // finally, print the image
 
+   // optionally diffuse the brick-of-whatevers
+  // smooth the bof in-place (eventually put this in bobtools)
+  if (diffuseSteps > 0) {
+
+    // allocate temporary bof array - but only one plane!
+    unsigned char** temp1 = allocate_2d_array_b(ny,nz);
+    unsigned char** temp2 = allocate_2d_array_b(ny,nz);
+
+    fprintf(stderr,"diffusing");
+    fflush(stderr);
+    for (int iter=0; iter<diffuseSteps; iter++) {
+      fprintf(stderr,".");
+      fflush(stderr);
+
+      // copy first plane into temp1
+      for (int j=0; j<ny; j++)
+        for (int k=0; k<nz; k++)
+          temp1[j][k] = dat[0][j][k];
+
+      // iterate through planes
+      for (int ix=1; ix<nx-1; ix++) {
+
+        // do the diffusion, put it in temp2
+        for (int iy=1; iy<ny-1; iy++) {
+        for (int iz=1; iz<nz-1; iz++) {
+          unsigned int neibsum = (unsigned int)dat[ix][iy][iz+1]
+                         +(unsigned int)dat[ix][iy][iz-1]
+                         +(unsigned int)dat[ix][iy+1][iz]
+                         +(unsigned int)dat[ix][iy-1][iz]
+                         +(unsigned int)dat[ix+1][iy][iz]
+                         +(unsigned int)temp1[iy][iz];
+          temp2[iy][iz] = (unsigned char)((neibsum + 6*(unsigned int)dat[ix][iy][iz] + 6) / 12);
+        }
+        }
+
+        // we can overwrite plane ix-1 now
+        for (int j=0; j<ny; j++)
+          for (int k=0; k<nz; k++)
+            dat[ix-1][j][k] = temp1[j][k];
+
+        // and swap planes
+        for (int j=0; j<ny; j++)
+          for (int k=0; k<nz; k++)
+            temp1[j][k] = temp2[j][k];
+      }
+
+      // copy temp1 into last plane
+      for (int j=0; j<ny; j++)
+        for (int k=0; k<nz; k++)
+          dat[nx-2][j][k] = temp1[j][k];
+    }
+
+    free_2d_array_b(temp1);
+    free_2d_array_b(temp2);
+    fprintf(stderr,"\n");
+    fflush(stderr);
+  }
+
+
+   // finally, print the image
    if (outType == bob) {
 
       fprintf(stderr,"Writing BOB file"); fflush(stderr);
