@@ -40,7 +40,7 @@ norm_ptr norm_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
 int Usage(char[80],int);
-int write_seg(FILE*, char*, double, node_ptr, node_ptr, VEC*, VEC*);
+int write_seg_slice(FILE*, char*, double, node_ptr, node_ptr, VEC*, VEC*);
 
 // from inout.c
 extern int find_mesh_stats(char*, VEC*, VEC*, int*, int*);
@@ -295,7 +295,7 @@ int main(int argc,char **argv) {
          }
 
          // just write the segment!
-         if (write_seg(ofp1,output_format,line_width,tnode1,tnode2,&tnorm1,&tnorm2)) {
+         if (write_seg_slice(ofp1,output_format,line_width,tnode1,tnode2,&tnorm1,&tnorm2)) {
             fprintf(stderr,"\n");
             fprintf(stderr,"Quitting.\n");
             fclose(ofp1);
@@ -321,9 +321,9 @@ int main(int argc,char **argv) {
 
 
 /*
- * write_seg - write a segment to the output file
+ * write_seg_slice - write a segment to the output file
  */
-int write_seg(FILE* ofp, char* output_format, double width,
+int write_seg_slice(FILE* ofp, char* output_format, double width,
               node_ptr n1, node_ptr n2, VEC *norm1, VEC *norm2) {
 
    static long int num_nodes = 0;

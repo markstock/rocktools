@@ -178,7 +178,7 @@ int Usage(char progname[80],int status) {
    {
        "where [-options] are one or more of the following:                         ",
        "                                                                           ",
-       "   -okey       specify output format, key= raw, rad, pov, obj, tin, rib    ",
+       "   -okey       specify output format, key= raw,rad,pov,obj,tin,rib,seg     ",
        "               default = raw; surface normal vectors are not supported     ",
        "                                                                           ",
        "   -s [x [y [z]]]                                                          ",

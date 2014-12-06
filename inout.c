@@ -43,6 +43,7 @@ int write_output(tri_pointer, char[4], int, int, char**);
 int write_raw(tri_pointer, int);
 int write_tin(tri_pointer, int);
 int write_obj(tri_pointer, int, int, char**);
+int write_seg(tri_pointer, int, char**);
 int write_rad(tri_pointer, int);
 int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
@@ -991,6 +992,8 @@ int write_output(tri_pointer head, char format[4], int keep_norms, int argc, cha
       num_wrote = write_obj(head, keep_norms, argc, argv);
    else if (strncmp(format, "rib", 2) == 0)
       num_wrote = write_rib(head, keep_norms);
+   else if (strncmp(format, "seg", 2) == 0)
+      num_wrote = write_seg(head, argc, argv);
    else {
       fprintf(stderr,"No output file format or unsupported file format given, using raw\n");
       num_wrote = write_raw(head, keep_norms);
@@ -1112,7 +1115,7 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
       // fprintf(stderr,"tri %d\n",curr_tri->index); fflush(stderr);
       // for (i=0; i<3; i++) fprintf(stderr,"  node %d\n",curr_tri->node[i]->index); fflush(stderr);
       for (int i=0; i<3; i++) curr_tri->node[i]->index = -1;
-      for (int i=0; i<3; i++) if (curr_tri->node[i] != NULL) curr_tri->node[i]->index = -1;
+      for (int i=0; i<3; i++) if (curr_tri->norm[i] != NULL) curr_tri->norm[i]->index = -1;
       curr_tri = curr_tri->next_tri;
    }
 
@@ -1172,6 +1175,72 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
    }
 
    fprintf(stderr,"Wrote Wavefront ASCII information, %d triangles\n",tri_ct);
+   return tri_ct;
+}
+
+
+/*
+ * Write out a Wavefront-like .seg file
+ *
+ * compact notation is where each unique node is listed once, if this
+ * is set to FALSE, preceding each triangle will be the three nodes' locations
+ */
+int write_seg(tri_pointer head, int argc, char **argv) {
+
+   int tri_ct = 0;
+   int node_ct = 0;
+   tri_pointer curr_tri = head;
+
+   fprintf(stderr,"Writing segments in Wavefront-like .seg format to stdout\n");
+   fflush(stderr);
+   fprintf(stdout,"# Segmented network written from rockconvert\n#");
+   for (int i=0; i<argc; i++) {
+      fprintf(stdout," %s",argv[i]);
+   }
+   fprintf(stdout,"\n");
+   //fprintf(stdout,"d 3\n");
+   //fprintf(stdout,"gr 0.01\n");
+
+   // set all node indexes to -1
+   curr_tri = head;
+   while (curr_tri) {
+      for (int i=0; i<3; i++) curr_tri->node[i]->index = -1;
+      curr_tri = curr_tri->next_tri;
+   }
+
+   // march through all triangles, writing nodes and segments as they appear, 
+   //    and setting indexes as they appear
+   curr_tri = head;
+   while (curr_tri) {
+
+      // write any new nodes
+      for (int i=0; i<3; i++) {
+         if (curr_tri->node[i]->index == -1) {
+            // this node has not appeared, write it!
+            if (isnan(curr_tri->node[i]->loc.x) ||
+                isnan(curr_tri->node[i]->loc.y) ||
+                isnan(curr_tri->node[i]->loc.z)) {
+              curr_tri->node[i]->loc.x = curr_tri->node[i%3]->loc.x;
+              curr_tri->node[i]->loc.y = curr_tri->node[i%3]->loc.y;
+              curr_tri->node[i]->loc.z = curr_tri->node[i%3]->loc.z;
+            }
+            fprintf(stdout,"v %12.7e %12.7e %12.7e\n",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
+            // and set the index
+            curr_tri->node[i]->index = ++node_ct;
+         }
+      }
+
+      // and write the three segments (these may not be unique!)
+      for (int i=0; i<3; i++) {
+         int ip1 = (i+1)%3;
+         fprintf(stdout,"s %d %d\n", curr_tri->node[i]->index, curr_tri->node[ip1]->index);
+      }
+
+      tri_ct++;
+      curr_tri = curr_tri->next_tri;
+   }
+
+   fprintf(stderr,"Wrote .seg ASCII information, %d segments\n",3*tri_ct);
    return tri_ct;
 }
 
