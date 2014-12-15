@@ -33,10 +33,9 @@
 #define SPLIT
 #include "structs.h"
 
-
-/* This needs to be here to use routines in utils.c */
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
 int Usage(char[80],int);
@@ -234,7 +233,7 @@ int main(int argc,char **argv) {
    //exit(0);
 
    /* Set up memory space for the working triangle, and the three nodes */
-   the_tri = (TRI *)malloc(sizeof(TRI));
+   the_tri = alloc_new_tri();
    for (i=0; i<3; i++) {
       the_nodes[i] = (NODE *)malloc(sizeof(NODE));
       the_tri->node[i] = the_nodes[i];
@@ -242,9 +241,9 @@ int main(int argc,char **argv) {
    /* these are for the nodes and triangles in case a triangle needs a corner trimmed */
    tnode1 = (NODE *)malloc(sizeof(NODE));
    tnode2 = (NODE *)malloc(sizeof(NODE));
-   ttri1 = (TRI *)malloc(sizeof(TRI));
+   ttri1 = alloc_new_tri();
    for (i=0; i<3; i++) ttri1->norm[i] = (NORM *)malloc(sizeof(NORM));
-   ttri2 = (TRI *)malloc(sizeof(TRI));
+   ttri2 = alloc_new_tri();
    for (i=0; i<3; i++) ttri2->norm[i] = (NORM *)malloc(sizeof(NORM));
    tnorm1.x = 0.;
    tnorm1.y = 0.;

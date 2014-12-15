@@ -385,7 +385,7 @@ tri_pointer create_convex_hull () {
    // create a first guess at a convex hull (trivial)
    //   (pick 3 nodes and make two coincident triangles pointing opposite directions)
 
-   new_tri = (TRI*)malloc(sizeof(TRI));
+   new_tri = alloc_new_tri();
    new_tri->index = num_tri;
    num_tri++;
    new_tri->node[0] = node_head;
@@ -398,7 +398,7 @@ tri_pointer create_convex_hull () {
    new_tri->next_tri = NULL;
    test_head = new_tri;
 
-   new_tri = (TRI*)malloc(sizeof(TRI));
+   new_tri = alloc_new_tri();
    new_tri->index = num_tri;
    num_tri++;
    new_tri->node[0] = test_head->node[0];
@@ -509,7 +509,7 @@ tri_pointer create_convex_hull () {
                if (this->adjacent[i]->index != -1) {
                   // this edge and farnode node create a new triangle!
                   //printf("  edge %d of tri %d %d %d is a hole edge\n",i,this->node[0]->index,this->node[1]->index,this->node[2]->index);
-                  new_tri = (TRI*)malloc(sizeof(TRI));
+                  new_tri = alloc_new_tri();
                   new_tri->index = num_tri;
                   num_tri++;
                   new_tri->node[0] = farnode;

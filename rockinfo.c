@@ -33,10 +33,9 @@
 #define INFO
 #include "structs.h"
 
-
-// This needs to be here to use routines in utils.c
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 // this subroutine appears in this file
 int Usage(char[80],int);

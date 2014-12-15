@@ -35,6 +35,7 @@
 /* some essential global variables */
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 int num_tri = 0;
 

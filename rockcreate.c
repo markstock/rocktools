@@ -35,6 +35,7 @@
 
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 int Usage(char[80],int);
 extern int read_files_for_nodes (int,char**);

@@ -36,6 +36,7 @@
 
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 extern int write_bob(tri_pointer,double*,double*,double*,double,double,int,char*);
 int Usage(char[255],int);

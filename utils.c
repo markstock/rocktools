@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999-2000,2002-2004,8  Mark J. Stock
+ * Copyright (C) 1999-2000,2002-2004,8,14  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,6 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
-//#include <malloc.h>
 #include "structs.h"
 
 int count_nodes();
@@ -49,6 +48,31 @@ VEC find_normal(VEC,VEC,VEC);
 double find_tri_dist(tri_pointer,VEC);
 int inside_bounds(double,double,double);
 
+
+/*
+ * Safely allocate a new triangle
+ */
+tri_pointer alloc_new_tri() {
+
+   tri_pointer new_tri = (TRI*)malloc(sizeof(TRI));
+   new_tri->index = -1;
+
+   // set all the pointers!
+   for (int j=0; j<3; j++) {
+      new_tri->node[j] = NULL;
+      new_tri->norm[j] = NULL;
+      new_tri->texture[j] = NULL;
+      new_tri->adjacent[j] = NULL;
+      new_tri->midpoint[j] = NULL;
+   }
+
+#ifdef DETAIL
+   new_tri->splittable = TRUE;
+#endif
+   new_tri->next_tri = NULL;
+
+   return new_tri;
+}
 
 /*
  * Add a node to the list of nodes - and search for close nodes
@@ -208,6 +232,71 @@ norm_ptr add_to_norms_list (int* num_norms, VEC* normal, nbin_ptr thebin) {
    }
 
    return curr_norm;
+}
+
+
+/*
+ * Add a texture coord to the list of text coords - and search for close values
+ */
+text_ptr add_to_textures_list (int* num_textures, UV* texture, tbin_ptr thebin) {
+
+   text_ptr curr_text = NULL;
+   int ibin = 0;
+   int found_match = FALSE;
+   double match_thresh = 1.e-5;     /* threshhold to match node texture */
+
+   // first, search the list for a node close to this
+   // new way to search
+   if (thebin) {
+      // start searching only in bin ibin
+      ibin = (int)(( texture->x - thebin->start )/thebin->dx);
+
+      //fprintf(stderr,"  search in bin %d\n",ibin); fflush(stderr);
+      curr_text = thebin->b[ibin];
+   } else {
+      // search through all nodes, starting with the head
+      curr_text = text_head;
+   }
+   while (curr_text) {
+      if (fabs(curr_text->uv.x - (*texture).x) < match_thresh) {
+         if (fabs(curr_text->uv.y - (*texture).y) < match_thresh) {
+            found_match = TRUE;
+            //fprintf(stderr,"yes!\n");
+            break;
+         } else {
+            //fprintf(stderr,"no.\n");
+         }
+      } else {
+         //fprintf(stderr,"no.\n");
+      }
+      if (thebin) curr_text = curr_text->next_btext;
+      else curr_text = curr_text->next_text;
+   }
+
+   //if (found_match) fprintf(stderr,"yes!\n");
+   //else fprintf(stderr,"no.\n");
+
+
+   /* did we find a match in the list of existing nodes? */
+   if (!found_match) {
+
+      /* if not, create one and add it to the list */
+      curr_text = (TEXTURE *)malloc(sizeof(TEXTURE));
+      curr_text->index = (*num_textures)++;
+      curr_text->uv.x = (*texture).x;
+      curr_text->uv.y = (*texture).y;
+      // add it to the head of the full list
+      curr_text->next_text = text_head;
+      text_head = curr_text;
+      // add it to the head of the bin's list
+      if (thebin) {
+         curr_text->next_btext = thebin->b[ibin];
+         thebin->b[ibin] = curr_text;
+      }
+      //fprintf(stderr,"  adding new text at %g %g\n",texture->x,texture->y); fflush(stderr);
+   }
+
+   return curr_text;
 }
 
 
@@ -813,6 +902,20 @@ void prepare_norm_bin (nbin_ptr bin) {
    // always split on z-axis
    bin->dx = 2.0/(BIN_COUNT-1);
    bin->start = -1.0 - 0.5*bin->dx;
+
+   for (int i=0;i<BIN_COUNT;i++) bin->b[i] = NULL;
+   return;
+}
+
+
+/*
+ * prepare the norm_bin structure
+ */
+void prepare_texture_bin (tbin_ptr bin) {
+
+   // always split on z-axis
+   bin->dx = 1.0/(BIN_COUNT-1);
+   bin->start = -0.5*bin->dx;
 
    for (int i=0;i<BIN_COUNT;i++) bin->b[i] = NULL;
    return;

@@ -99,30 +99,32 @@ tri_pointer read_input(char infile[80],int invert,tri_pointer tri_head) {
  * form (meaning that every node only appears once, and many
  * triangles may reference the same node
  */
-tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
+//#pragma GCC push_options
+//#pragma GCC optimize ("O0")
+tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[80],int invert,tri_pointer tri_head) {
 
    int inode = 0;
    int inorm = 0;
+   int itext = 0;
    int num_tri = 0;
    int num_nodes = 0;
    int num_norms = 0;
-   //int use_norm = FALSE;
-   //char onechar,anotherchar;
+   int num_texts = 0;
    char onechar[2],anotherchar[2];
-   //char twochar[2];
    char twochar[3];
    char sbuf[128];
    char xs[20],ys[20],zs[20];
-   char newval[32],sub[10];
    VEC *loc = NULL;
    VEC *normal = NULL;
+   UV *texture = NULL;
    VEC test,nmin,nmax;
    node_ptr new_node = NULL;
    norm_ptr new_norm = NULL;
-   //tri_pointer tri_head = NULL;
+   text_ptr new_text = NULL;
    tri_pointer new_tri = NULL;
    BIN nodebin;
    NBIN normbin;
+   TBIN textbin;
    FILE *fp;
 
    // fprintf(stderr,"Try to read %s\n",filename); fflush(stderr);
@@ -171,8 +173,10 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             inode++;
          } else if (anotherchar[0] == 'n') {
             // it's a vertex normal
-            //use_norm = TRUE;
             inorm++;
+         } else if (anotherchar[0] == 't') {
+            // it's a texture coordinate
+            itext++;
          } else {
             // if its not identifiable, skip it, do not scale, do not write
          }
@@ -191,6 +195,7 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    // fprintf(stderr,"Found %d vertexes\n",i);
 
    if (inorm > 0) normal = (VEC*)malloc(inorm*sizeof(VEC));
+   if (itext > 0) texture = (UV*)malloc(itext*sizeof(UV));
 
    // Initialize bin structures
    // fprintf(stderr,"%g %g %g   %g %g %g\n",nmin.x,nmin.y,nmin.z,nmax.x,nmax.y,nmax.z);
@@ -199,6 +204,7 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    //for (i=0;i<BIN_COUNT;i++) nodebin.b[i] = NULL;
    (void) prepare_node_bin (&nodebin,nmin,nmax);
    (void) prepare_norm_bin (&normbin);
+   (void) prepare_texture_bin (&textbin);
 
 
    // open the .obj file for reading
@@ -215,6 +221,8 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
    inode = 0;
    // node normal counter variable!
    inorm = 0;
+   // node texture counter variable!
+   itext = 0;
    // line count variable
    int nlines = 0;
 
@@ -242,8 +250,7 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             loc[inode].z = atof(zs);
             inode++;
          } else if (anotherchar[0] == 'n') {
-            // read a vertex normal - NOT USEFUL YET
-            //use_norm = TRUE;
+            // read a vertex normal
             fscanf(fp,"%s %s %s",xs,ys,zs);
             // fprintf(stderr,"n %d  %s %s %s\n",k,xs,ys,zs); fflush(stderr);
             normal[inorm].x = atof(xs);
@@ -251,66 +258,105 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
             normal[inorm].z = atof(zs);
             inorm++;
          } else if (anotherchar[0] == 't') {
-            // it's a texture coordinate - NOT USEFUL YET
+            // read a vertex texture coordinate
+            fscanf(fp,"%s %s",xs,ys);
+            // fprintf(stderr,"n %d  %s %s %s\n",k,xs,ys,zs); fflush(stderr);
+            texture[itext].x = atof(xs);
+            texture[itext].y = atof(ys);
+            itext++;
          } else {
             // if its not identifiable, skip it, do not scale, do not write
          }
 
       } else if (onechar[0] == 'f') {
          // read a triangle line
-         new_tri = (TRI*)malloc(sizeof(TRI));
+         new_tri = alloc_new_tri();
          new_tri->index = num_tri;
          //fprintf(stdout,"t");
          //fprintf(stderr,"\nline %d, tri %d\n",nlines,new_tri->index);
-         int node_index[3] = {0,0,0};
-         //int uv_index[3] = {0,0,0};
-         int norm_index[3] = {0,0,0};
+         volatile int node_index[3] = {0,0,0};
+         volatile int uv_index[3] = {0,0,0};
+         volatile int norm_index[3] = {0,0,0};
 
          // read each set of values, like "39//123" or "5" or "1192/2524"
          for (int nn=0; nn<3; nn++) {
+            char newval[32];
             fscanf(fp,"%s",newval);
+            //if (nlines==247973) fprintf(stderr,"\n  key is %s\n",newval);
+            // can't use sscanf, n//n isn't matched
+            //int i1,i2,i3;
+            //sscanf(newval,"%d/%d/%d",&i1,&i2,&i3);
+            //if (nlines==247973) fprintf(stderr,"  tokens are %d %d %d\n",i1,i2,i3);
+            // can't use strtok either, because n//n returns val/val and not val/null/val
+            //char* token = strtok(newval,"/");
+            //if (nlines==247973) fprintf(stderr,"  token is %s\n",token);
+            //token = strtok(NULL,"/");
+            //if (nlines==247973) fprintf(stderr,"  token is %s\n",token);
+            //token = strtok(NULL,"/");
+            //if (nlines==247973) fprintf(stderr,"  token is %s\n",token);
 
             // look for a slash
             int i;
-            for (i=0; i<strlen(newval); i++)
+            for (i=0; i<strlen(newval); i++) {
                if (newval[i] == '/' || newval[i] == '\0') break;
-            strncpy(sub,newval,i);
-            sub[i] = '\0';
-            if (i>0) node_index[nn] = atoi(sub);
+            }
+            //if (nlines==247973) fprintf(stderr,"    i is %d\n",i);
+            char sub1[10];
+            strncpy(sub1,newval,i);
+            //if (nlines==247973) fprintf(stderr,"    sub is %s\n",sub1);
+            sub1[i] = '\0';
+            if (i>0) node_index[nn] = atoi(sub1);
+            //if (nlines==247973) fprintf(stderr,"    node %d is %d\n",0,node_index[0]);
+            //if (nlines==247973) fprintf(stderr,"    node %d is %d\n",nn,node_index[nn]);
 
             // should we continue?
             if (newval[i] == '/') {
               int j;
-              for (j=i+1; j<strlen(newval); j++)
+              for (j=i+1; j<strlen(newval); j++) {
                  if (newval[j] == '/' || newval[j] == '\0') break;
-              strncpy(sub,newval+i+1,j);
-              sub[j-i-1] = '\0';
-              //if (j-i > 1) uv_index[nn] = atoi(sub);
+              }
+              char sub2[10];
+              strncpy(sub2,newval+i+1,j);
+              sub2[j-i-1] = '\0';
+              if (j-i > 1) uv_index[nn] = atoi(sub2);
+              //if (nlines==247973) fprintf(stderr,"    node %d is %d\n",nn,node_index[nn]);
+              //if (nlines==247973) fprintf(stderr,"    nodeA %d is %d\n",0,node_index[0]);
 
               // should we continue?
               if (newval[j] == '/') {
                  int k;
-                 for (k=j+1; k<strlen(newval); k++)
+                 for (k=j+1; k<strlen(newval); k++) {
                     if (newval[k] == '/' || newval[k] == '\0') break;
-                 strncpy(sub,newval+j+1,k);
-                 sub[k-j-1] = '\0';
-                 if (k-j > 1) norm_index[nn] = atoi(sub);
+                 }
+                 //if (nlines==247973) fprintf(stderr,"    nodeB %d is %d\n",0,node_index[0]);
+                 char sub3[10];
+                 strncpy(sub3,newval+j+1,k);
+                 //if (nlines==247973) fprintf(stderr,"    nodeC %d is %d\n",0,node_index[0]);
+                 sub3[k-j-1] = '\0';
+                 //if (nlines==247973) fprintf(stderr,"    nodeD %d is %d\n",0,node_index[0]);
+                 //if (nlines==247973) fprintf(stderr,"    norm %d is %d\n",nn,norm_index[nn]);
+                 if (k-j > 1) norm_index[nn] = atoi(sub3);
+                 //if (nlines==247973) fprintf(stderr,"    norm %d is %d\n",nn,norm_index[nn]);
+                 //if (nlines==247973) fprintf(stderr,"    nodeE %d is %d\n",0,node_index[0]);
+                 //if (nlines==247973) fprintf(stderr,"    node %d is %d\n",nn,node_index[nn]);
               }
             }
          }
 
          for (int j=0; j<3; j++) {
+            // flip the normals here, by reversing the node order
+            int targetj = j;
+            if (invert) targetj = 2-j;
+
             if (node_index[j] < 1) {
-               fprintf(stderr,"ERROR (read_obj): node index in file is <1 on line %d\nQuitting.",nlines);
+               fprintf(stderr,"ERROR (read_obj): node index in file is <1 on line %d\nQuitting.\n",nlines);
+               fprintf(stderr,"  nodes %d %d %d\n",node_index[0],node_index[1],node_index[2]);
+               fprintf(stderr,"  texts %d %d %d\n",uv_index[0],uv_index[1],uv_index[2]);
+               fprintf(stderr,"  norms %d %d %d\n",norm_index[0],norm_index[1],norm_index[2]);
                exit(1);
             }
             new_node = add_to_nodes_list(new_tri,&num_nodes,j,&loc[node_index[j]-1],&nodebin);
-            // flip the normals here, by reversing the node order
-            if (invert) {
-               new_tri->node[2-j] = new_node;
-            } else {
-               new_tri->node[j] = new_node;
-            }
+            new_tri->node[targetj] = new_node;
          }
 
          // set the node's normals here, if they were read in
@@ -324,10 +370,19 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
                new_norm = add_to_norms_list(&num_norms,&normal[norm_index[j]-1],&normbin);
                new_tri->norm[targetj] = new_norm;
             }
-            //int jj = norm_index[j];
-            //new_tri->norm[j].x = normal[jj].x;
-            //new_tri->norm[j].y = normal[jj].y;
-            //new_tri->norm[j].z = normal[jj].z;
+         }
+
+         // set the node's texture coord here, if they were read in
+         for (int j=0; j<3; j++) {
+            int targetj = j;
+            if (invert) targetj = 2-j;
+
+            if (uv_index[j] < 1) {
+               new_tri->texture[targetj] = NULL;
+            } else {
+               new_text = add_to_textures_list(&num_texts,&texture[uv_index[j]-1],&textbin);
+               new_tri->texture[targetj] = new_text;
+            }
          }
 
          // set the adjacent triangle and midpoint pointers to NULL
@@ -357,10 +412,15 @@ tri_pointer read_obj(char filename[80],int invert,tri_pointer tri_head) {
       fscanf(fp,"%[\n]",twochar);	// read newline
    }
    fclose(fp);
-   fprintf(stderr,"%d tris\n",num_tri);
+
+   fprintf(stderr,"\n  %d tris\n",num_tri);
+   fprintf(stderr,"  %d nodes\n",num_nodes);
+   if (num_texts > 0) fprintf(stderr,"  %d texture coords\n",num_texts);
+   if (num_norms > 0) fprintf(stderr,"  %d normals\n",num_norms);
 
    return(tri_head);
 }
+//#pragma GCC pop_options
 
 
 /*
@@ -376,7 +436,6 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
    int num_tri = 0;
    int num_nodes = 0;
    int num_norms = 0;
-   //char onechar;
    char twochar[2];
    char sbuf[512];
    char d[18][32];
@@ -384,11 +443,10 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
    double temp[18];
    node_ptr new_node;
    norm_ptr new_norm;
-   //tri_pointer tri_head = NULL;
+   //text_ptr new_text;
    tri_pointer new_tri = NULL;
    BIN nodebin;
    NBIN normbin;
-   //long int fpos;
    FILE *fp;
 
    // open the .raw file for reading
@@ -475,7 +533,7 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
          for (i=0; i<18; i++) temp[i] = atof(d[i]);
 
          // and make the tri
-         new_tri = (TRI *)malloc(sizeof(TRI));
+         new_tri = alloc_new_tri();
          new_tri->index = num_tri;
          num_tri++;
          //fprintf(stderr,"tri %d\n",num_tri); fflush(stderr);
@@ -505,14 +563,6 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
          //fprintf(stderr,"%d  %g %g %g\n",num_tri,location.x,location.y,location.z); fflush(stderr);
 
          /* set the node's normals here, if they were read in */
-
-         //if (use_norm && !is_tin) {
-         //   if (fabs(temp[9]+temp[10]+temp[11]+temp[12]+temp[13]+temp[14]+temp[15]+temp[16]+temp[17]) < 1.e-10) {
-         //     fprintf(stderr,"Found zero norm! j=%d\n",j);
-         //     for (i=0; i<18; i++) fprintf(stderr,"  %d %g\n",i,temp[i]);
-         //     exit(0);
-         //   }
-         //}
 
          // currently not supported (j<=9 in here)
          if ((int)isdigit(d[9][0]) || d[9][0] == '+' || d[9][0] == '-') {
@@ -760,7 +810,7 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
          } else {
 
          // and make the tri
-         new_tri = (TRI *)malloc(sizeof(TRI));
+         new_tri = alloc_new_tri();
          new_tri->index = num_tri;
          num_tri++;
          //fprintf(stderr,"tri %d\n",num_tri); fflush(stderr);
@@ -913,7 +963,7 @@ tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
       if (atoi(t[1]) == 2) {
 
          // read a triangle line
-         new_tri = (TRI*)malloc(sizeof(TRI));
+         new_tri = alloc_new_tri();
          new_tri->index = num_tri;
          fscanf(fp,"%s %s %s",t[0],t[1],t[2]);
          node_index[0] = atoi(t[0]);
@@ -932,8 +982,6 @@ tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
             //new_tri->node[j]->num_conn++;
 #endif
          }
-
-         //new_tri->use_norm = FALSE;
 
          // set the adjacent triangle and midpoint pointers to NULL
          for (j=0; j<3; j++) {
@@ -1094,9 +1142,9 @@ int write_tin (tri_pointer head, int keep_norms) {
 int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
 
    int tri_ct = 0;
-   int node_ct = 1;
+   int node_ct = 0;
    int norm_ct = 0;
-   int normid[3];
+   int text_ct = 0;
    // int normal_ct = 0;
    // node_ptr curr_node = node_head;
    tri_pointer curr_tri = head;
@@ -1116,13 +1164,13 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
       // for (i=0; i<3; i++) fprintf(stderr,"  node %d\n",curr_tri->node[i]->index); fflush(stderr);
       for (int i=0; i<3; i++) curr_tri->node[i]->index = -1;
       for (int i=0; i<3; i++) if (curr_tri->norm[i] != NULL) curr_tri->norm[i]->index = -1;
+      for (int i=0; i<3; i++) if (curr_tri->texture[i] != NULL) curr_tri->texture[i]->index = -1;
       curr_tri = curr_tri->next_tri;
    }
 
    // march through all triangles, writing nodes as they appear, 
    //    and setting indexes as they appear
    curr_tri = head;
-   node_ct = 1;
    while (curr_tri) {
       for (int i=0; i<3; i++) {
          if (curr_tri->node[i]->index == -1) {
@@ -1136,8 +1184,7 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
             }
             fprintf(stdout,"v %12.7e %12.7e %12.7e\n",curr_tri->node[i]->loc.x,curr_tri->node[i]->loc.y,curr_tri->node[i]->loc.z);
             // and set the index
-            curr_tri->node[i]->index = node_ct;
-            node_ct++;
+            curr_tri->node[i]->index = ++node_ct;
          }
       }
 
@@ -1145,7 +1192,6 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
       if (keep_norms) {
          // write the unique norms
          for (int i=0; i<3; i++) {
-            normid[i] = 0;
             if (curr_tri->norm[i] != NULL) {
                if (curr_tri->norm[i]->index == -1 &&
                   !isnan(curr_tri->norm[i]->norm.x) &&
@@ -1153,20 +1199,40 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
                   !isnan(curr_tri->norm[i]->norm.z)) {
                   // this node has not appeared and is not nan, write it!
                   fprintf(stdout,"vn %12.7e %12.7e %12.7e\n",curr_tri->norm[i]->norm.x,curr_tri->norm[i]->norm.y,curr_tri->norm[i]->norm.z);
-                  norm_ct++;
-                  normid[i] = norm_ct;
+                  // and set the index
+                  curr_tri->norm[i]->index = ++norm_ct;
                }
             }
          }
       } else {
-            for (int i=0; i<3; i++) normid[i] = 0;
+            for (int i=0; i<3; i++) free(curr_tri->norm[i]);
+      }
+
+      // write any valid texture coordinates
+      // write the unique norms
+      for (int i=0; i<3; i++) {
+         if (curr_tri->texture[i] != NULL) {
+            if (curr_tri->texture[i]->index == -1 &&
+               !isnan(curr_tri->texture[i]->uv.x) &&
+               !isnan(curr_tri->texture[i]->uv.y)) {
+               // this node has not appeared and is not nan, write it!
+               fprintf(stdout,"vt %12.7e %12.7e\n",curr_tri->texture[i]->uv.x,curr_tri->texture[i]->uv.y);
+               // and set the index
+               curr_tri->texture[i]->index = ++text_ct;
+            }
+         }
       }
 
       // and write the tri itself
       fprintf(stdout,"f");
       for (int i=0; i<3; i++) {
          fprintf(stdout," %d",curr_tri->node[i]->index);
-         if (normid[i] > 0) fprintf(stdout,"//%d",normid[i]);
+         if (curr_tri->texture[i] != NULL) {
+            fprintf(stdout,"/%d",curr_tri->texture[i]->index);
+            if (curr_tri->norm[i] != NULL) fprintf(stdout,"/%d",curr_tri->norm[i]->index);
+         } else {
+            if (curr_tri->norm[i] != NULL) fprintf(stdout,"//%d",curr_tri->norm[i]->index);
+         }
       }
       fprintf(stdout,"\n");
 
@@ -1459,7 +1525,7 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
 
 
    // Set up memory space for the working triangle, and the three nodes
-   the_tri = (TRI *)malloc(sizeof(TRI));
+   the_tri = alloc_new_tri();
    for (i=0; i<3; i++) the_tri->node[i] = (NODE *)malloc(sizeof(NODE));
    for (i=0; i<3; i++) the_tri->norm[i] = (NORM *)malloc(sizeof(NORM));
 

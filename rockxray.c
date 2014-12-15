@@ -36,6 +36,7 @@
 
 node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
+text_ptr text_head = NULL;
 
 extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,char*,int);
 int Usage(char[80],int);

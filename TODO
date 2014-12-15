@@ -9,9 +9,11 @@ Last modified:
 1999-06-09 Mark Stock
 
 2014-11-12
-Support uv coordinates
+Support uv coordinates (DONE)
 Support more than 3 dimensions, like stickkit
-Support normals fully (input, output, present and absent on per-node basis)
+Support normals fully (input, output, present and absent on per-node basis, scaling)
+Support texture coords fully (rockdetail, specifically)
+Change all next_node to just next, and all next_bnode to next_in_bin
 
 
 Older:

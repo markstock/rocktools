@@ -24,10 +24,13 @@
  *
  ***********************************************************/
 
+#pragma once
 
 /*
  * Here are some structs and pointers to hold the triangle data
  */
+
+#define FLOAT double
 
 #define TRUE 1
 #define FALSE 0
@@ -48,17 +51,24 @@
  * A basic 3D vector
  */
 typedef struct three_d_vector {
-   double x;
-   double y;
-   double z;
+   FLOAT x;
+   FLOAT y;
+   FLOAT z;
 } VEC;
+
+typedef struct two_d_coord {
+   FLOAT x;
+   FLOAT y;
+} UV;
 
 /*
  * Pointers to the two types of data structures below
  */
 typedef struct node_record *node_ptr;
 typedef struct norm_record *norm_ptr;
+typedef struct texture_record *text_ptr;
 typedef struct tri_record *tri_pointer;
+
 
 
 /*
@@ -108,14 +118,26 @@ typedef struct norm_record {
 
 
 /*
+ * A data structure definition of a texture coordinate, shared by an
+ * arbitrary number of triangles
+ */
+typedef struct texture_record {
+   int index;			/* index of the texture coord */
+   UV uv;			/* 2d texture coordinates */
+
+   text_ptr next_btext;		// next coord in the bin
+   text_ptr next_text;
+} TEXTURE;
+
+
+/*
  * A data structure definition of a single triangle
  */
 typedef struct tri_record {
    int index;			/* index of the node */
    node_ptr node[3];		/* pointer to the three nodes, CCW */
-   //int use_norm;		/* use the normals? 0=no, 1=yes, alt usage in rockdetail */
-   //VEC norm[3];			/* surface normal vectors at the nodes */
    norm_ptr norm[3];		/* surface normal vectors at the nodes */
+   text_ptr texture[3];		/* pointer to the three texture coords, CCW */
    tri_pointer adjacent[3];	/* pointers to the three adjacent triangles */
  				/* adjacent[0] refers to edge between node[0] and node[1] */
 
@@ -148,6 +170,15 @@ typedef struct nbin_record {
    double start,dx;		// starting point and bin size
    norm_ptr b[BIN_COUNT];	// the bins
 } NBIN;
+
+/*
+ * structure for a binning system for texture coords
+ */
+typedef struct tbin_record *tbin_ptr;
+typedef struct tbin_record {
+   double start,dx;		// starting point and bin size
+   text_ptr b[BIN_COUNT];	// the bins
+} TBIN;
 
 
 /*
@@ -191,9 +222,12 @@ typedef struct marker_record {
  */
 extern node_ptr node_head;
 extern norm_ptr norm_head;
+extern text_ptr text_head;
 
+extern tri_pointer alloc_new_tri();
 extern node_ptr add_to_nodes_list(tri_pointer,int*,int,VEC*,bin_ptr);
 extern norm_ptr add_to_norms_list(int*,VEC*,nbin_ptr);
+extern text_ptr add_to_textures_list (int*, UV*, tbin_ptr);
 extern int add_conn_tri (node_ptr, tri_pointer, int);
 extern int set_adjacent_tris(tri_pointer);
 extern int fix_orientation(tri_pointer);
@@ -221,6 +255,7 @@ extern double dot(VEC,VEC);
 extern double theta(VEC,VEC);
 extern void prepare_node_bin(bin_ptr,VEC,VEC);
 extern void prepare_norm_bin(nbin_ptr);
+extern void prepare_texture_bin(tbin_ptr);
 extern float** allocate_2d_array_f(int,int);
 extern int free_2d_array_f(float**);
 extern tri_pointer read_input(char*,int,tri_pointer);

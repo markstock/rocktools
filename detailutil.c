@@ -104,7 +104,7 @@ tri_pointer split_tri_hex(int depth,tri_pointer tri_head) {
       // if the tri is too small, do not split it, just copy it to the new list
       // For first take, split all tris
       if (!this_tri->splittable) {
-         new_tri[0] = (TRI*)malloc(sizeof(TRI));
+         new_tri[0] = alloc_new_tri();
          new_tri[0]->splittable = FALSE;
          new_tri[0]->node[0] = this_tri->node[0];
          new_tri[0]->node[1] = this_tri->node[1];
@@ -202,8 +202,8 @@ tri_pointer split_tri_hex(int depth,tri_pointer tri_head) {
             // fflush(stdout);
 
             // initialize two new elements
-            new_tri[0] = (TRI*)malloc(sizeof(TRI));
-            new_tri[1] = (TRI*)malloc(sizeof(TRI));
+            new_tri[0] = alloc_new_tri();
+            new_tri[1] = alloc_new_tri();
 
             // define two new elements
             new_tri[0]->node[0] = NULL;
@@ -513,7 +513,7 @@ tri_pointer split_tri(int depth,tri_pointer tri_head) {
 
          // create the four new triangles
          for (i=0; i<num_new_tri; i++) {
-            new_tri[i] = (TRI*)malloc(sizeof(TRI));
+            new_tri[i] = alloc_new_tri();
             new_tri[i]->splittable = FALSE;
          }
 
@@ -705,7 +705,7 @@ tri_pointer split_tri(int depth,tri_pointer tri_head) {
          } else {	// if num_new_tri==1
 
             // then just pass this tri on to the next stage
-            // new_tri[0] = (TRI*)malloc(sizeof(TRI));
+            // new_tri[0] = alloc_new_tri();
             // new_tri[0]->splittable = FALSE;
             new_tri[0]->node[0] = this_tri->node[0];
             new_tri[0]->node[1] = this_tri->node[1];
@@ -844,7 +844,7 @@ tri_pointer split_tri(int depth,tri_pointer tri_head) {
       }
 
       // create the four new triangles
-      for (i=0; i<4; i++) new_tri[i] = (TRI*)malloc(sizeof(TRI));
+      for (i=0; i<4; i++) new_tri[i] = alloc_new_tri();
 
       // no change to old method
       // by default, set all external adjacent pointers to NULL, fix later
@@ -1074,7 +1074,7 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
 
          // create the N new triangles
          for (i=0; i<num_new_tri; i++) {
-            new_tri[i] = (TRI*)malloc(sizeof(TRI));
+            new_tri[i] = alloc_new_tri();
             new_tri[i]->splittable = FALSE;
          }
 
@@ -1425,7 +1425,7 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
          } else {	// if num_new_tri==1
 
             // then just pass this tri on to the next stage
-            // new_tri[0] = (TRI*)malloc(sizeof(TRI));
+            // new_tri[0] = alloc_new_tri();
             // new_tri[0]->splittable = FALSE;
             new_tri[0]->node[0] = this_tri->node[0];
             new_tri[0]->node[1] = this_tri->node[1];
@@ -1579,7 +1579,7 @@ tri_pointer split_tri_5 (int depth, tri_pointer tri_head) {
       }
 
       // create the four new triangles
-      for (i=0; i<4; i++) new_tri[i] = (TRI*)malloc(sizeof(TRI));
+      for (i=0; i<4; i++) new_tri[i] = alloc_new_tri();
 
       // no change to old method
       // by default, set all external adjacent pointers to NULL, fix later

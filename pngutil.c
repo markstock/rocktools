@@ -876,7 +876,7 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
    tri_pointer new_tri = NULL;
 
    // initialize a tri
-   new_tri = (TRI *)malloc(sizeof(TRI));
+   new_tri = alloc_new_tri();
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
    for (k=0; k<3; k++) {
@@ -898,7 +898,7 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
    }
 
    // and the other one
-   new_tri = (TRI *)malloc(sizeof(TRI));
+   new_tri = alloc_new_tri();
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
    for (k=0; k<3; k++) {
