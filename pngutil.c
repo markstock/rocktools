@@ -33,8 +33,10 @@
 float** read_png (char*, float, float, int*, int*);
 png_byte** allocate_2d_array_pb (int,int,int);
 int free_2d_array_pb (png_byte**);
-tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double);
+tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double, int);
 double find_optimum_offset_z (int, int, float**, int, int, double, double);
+tri_pointer add_tris_with_nodes (tri_pointer, int*, node_ptr, node_ptr, node_ptr);
+tri_pointer add_tris_with_nodes_tcs (tri_pointer, int*, node_ptr, node_ptr, node_ptr, text_ptr, text_ptr, text_ptr);
 tri_pointer add_twotris_by_fournodes (tri_pointer, int*, node_ptr, node_ptr, node_ptr, node_ptr);
 tri_pointer add_manytris_by_fournodes (tri_pointer, int*, int*, BIN*, node_ptr, node_ptr, node_ptr, node_ptr);
 unsigned char** prepare_flag_array (int, int, int, int, int, int);
@@ -258,11 +260,13 @@ int free_2d_array_pb(png_byte** array){
  */
 tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int ny,
                                  int do_bottom, int do_trans, double depth,
-                                 int do_legs, int do_walls, double thick, double inset) {
+                                 int do_legs, int do_walls, double thick, double inset,
+                                 int do_texture_coords) {
 
    int i,j,k,l;
    int num_tri = 0;
    int num_nodes = 0;
+   int num_texts = 0;
    int rotate_for_curvature = TRUE;
    int need_side;
    int ithick,iinset;
@@ -271,9 +275,11 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
    double meanelev,thiselev,dx,dy,ixx,iyy,ixy,tra; //,eigv1,eigv2;
    unsigned char **legflag = NULL;
    VEC nmin,nmax,location;
+   UV tc;
    node_ptr nodell,nodelr,nodeur,nodeul,temp_node;
    tri_pointer new_tri = NULL;
    BIN nodebin;
+   TBIN textbin;
 
    // find x and y scales
    if (nx > ny) {
@@ -337,6 +343,7 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
 
    // Initialize bin structure
    (void) prepare_node_bin (&nodebin,nmin,nmax);
+   (void) prepare_texture_bin (&textbin);
 
    fprintf(stderr,"creating triangles...\n"); fflush(stderr);
    for (i=0; i<nx-1; i++) {
@@ -352,22 +359,37 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
          //fflush(stdout);
          // if we don't need connectivity info, this call ignores tri1 and 0
          nodell = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
+         tc.x = location.x;
+         tc.y = location.y;
+         text_ptr textll = add_to_textures_list(&num_texts,&tc,&textbin);
+
          // lower right corner
          location.x = hscale*(double)(i+1);
          location.y = hscale*(double)j;
          location.z = (double)hf[i+1][j];
          nodelr = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
+         tc.x = location.x;
+         tc.y = location.y;
+         text_ptr textlr = add_to_textures_list(&num_texts,&tc,&textbin);
+
          // upper right corner
          location.x = hscale*(double)(i+1);
          location.y = hscale*(double)(j+1);
          location.z = (double)hf[i+1][j+1];
          nodeur = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
+         tc.x = location.x;
+         tc.y = location.y;
+         text_ptr textur = add_to_textures_list(&num_texts,&tc,&textbin);
+
          // upper left corner
          location.x = hscale*(double)i;
          location.y = hscale*(double)(j+1);
          location.z = (double)hf[i][j+1];
          nodeul = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
          //fprintf(stdout,"%d %d  %g %g %g\n",i,j,location.x,location.y,location.z);
+         tc.x = location.x;
+         tc.y = location.y;
+         text_ptr textul = add_to_textures_list(&num_texts,&tc,&textbin);
 
          // curvature estimation
          //if (i==1 && j==1) {
@@ -423,7 +445,14 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
          }
 
          // make the two tris
-         tri_head = add_twotris_by_fournodes (tri_head,&num_tri,nodell,nodelr,nodeur,nodeul);
+         if (do_texture_coords) {
+            tri_head = add_tris_with_nodes_tcs (tri_head,&num_tri,nodell,nodelr,nodeur,textll,textlr,textur);
+            tri_head = add_tris_with_nodes_tcs (tri_head,&num_tri,nodell,nodeur,nodeul,textll,textur,textul);
+         } else {
+            tri_head = add_tris_with_nodes (tri_head,&num_tri,nodell,nodelr,nodeur);
+            tri_head = add_tris_with_nodes (tri_head,&num_tri,nodell,nodeur,nodeul);
+         }
+         //tri_head = add_twotris_by_fournodes (tri_head,&num_tri,nodell,nodelr,nodeur,nodeul);
 
 
          // sometimes write the bottom ---------------------------------
@@ -486,7 +515,9 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
             }
 
             // make the two tris
-            tri_head = add_twotris_by_fournodes (tri_head,&num_tri,nodell,nodeul,nodeur,nodelr);
+            tri_head = add_tris_with_nodes (tri_head,&num_tri,nodell,nodeul,nodeur);
+            tri_head = add_tris_with_nodes (tri_head,&num_tri,nodell,nodeur,nodelr);
+            //tri_head = add_twotris_by_fournodes (tri_head,&num_tri,nodell,nodeul,nodeur,nodelr);
 
             // does this cell (between 2x2 nodes) need side panels?
 
@@ -868,21 +899,65 @@ unsigned char** prepare_flag_array (int do_walls, int do_legs,
  *
  * always draw a pair of triangles with the diag from ll to ur
  */
+tri_pointer add_tris_with_nodes (tri_pointer tri_head, int* num_tri,
+                                 node_ptr n1, node_ptr n2, node_ptr n3) {
+   // initialize a tri
+   tri_pointer new_tri = alloc_new_tri();
+   new_tri->index = (*num_tri);
+   (*num_tri) = (*num_tri)+1;
+
+   // set the node pointers
+   new_tri->node[0] = n1;
+   new_tri->node[1] = n2;
+   new_tri->node[2] = n3;
+
+   // add it on as the new head of the list
+   if (tri_head) {
+      new_tri->next_tri = tri_head;
+      tri_head = new_tri;
+   } else {
+      tri_head = new_tri;
+      tri_head->next_tri = NULL;
+   }
+
+   return (tri_head);
+}
+
+tri_pointer add_tris_with_nodes_tcs (tri_pointer tri_head, int* num_tri,
+                                     node_ptr n1, node_ptr n2, node_ptr n3,
+                                     text_ptr t1, text_ptr t2, text_ptr t3) {
+   // initialize a tri
+   tri_pointer new_tri = alloc_new_tri();
+   new_tri->index = (*num_tri);
+   (*num_tri) = (*num_tri)+1;
+
+   // set the node pointers
+   new_tri->node[0] = n1;
+   new_tri->node[1] = n2;
+   new_tri->node[2] = n3;
+   new_tri->texture[0] = t1;
+   new_tri->texture[1] = t2;
+   new_tri->texture[2] = t3;
+
+   // add it on as the new head of the list
+   if (tri_head) {
+      new_tri->next_tri = tri_head;
+      tri_head = new_tri;
+   } else {
+      tri_head = new_tri;
+      tri_head->next_tri = NULL;
+   }
+
+   return (tri_head);
+}
+
 tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
                               node_ptr ll, node_ptr lr,
                               node_ptr ur, node_ptr ul) {
-
-   int k;
-   tri_pointer new_tri = NULL;
-
    // initialize a tri
-   new_tri = alloc_new_tri();
+   tri_pointer new_tri = alloc_new_tri();
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
-   for (k=0; k<3; k++) {
-      new_tri->adjacent[k] = NULL;
-      new_tri->midpoint[k] = NULL;
-   }
 
    // set the node pointers
    new_tri->node[0] = ll;
@@ -901,10 +976,6 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
    new_tri = alloc_new_tri();
    new_tri->index = (*num_tri);
    (*num_tri) = (*num_tri)+1;
-   for (k=0; k<3; k++) {
-      new_tri->adjacent[k] = NULL;
-      new_tri->midpoint[k] = NULL;
-   }
    // set the node pointers
    new_tri->node[0] = ll;
    new_tri->node[1] = ur;

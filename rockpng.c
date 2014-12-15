@@ -42,7 +42,7 @@ void rescale_nodes (double);
 int Usage(char[160],int);
 
 extern float** read_png (char*, float, float, int*, int*);
-extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double);
+extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double, int);
 
 int main(int argc,char **argv) {
 
@@ -58,6 +58,7 @@ int main(int argc,char **argv) {
    int do_trans = FALSE;
    int do_legs = FALSE;
    int do_walls = FALSE;
+   int do_texture_coords = FALSE;
    float **hf = NULL;
    double depth = 0.01;
    double thick = 0.01;
@@ -137,6 +138,8 @@ int main(int argc,char **argv) {
                inset = atof(argv[++i]);
             }
          }
+      } else if (strncmp(argv[i], "-texture", 3) == 0) {
+         do_texture_coords = TRUE;
       } else {
          (void) Usage(progname,0);
       }
@@ -204,7 +207,8 @@ int main(int argc,char **argv) {
    // generate the mesh
    fprintf(stderr,"Generating mesh\n");
    fflush(stderr);
-   tri_head = generate_heightmesh (tri_head,hf,nx,ny,do_bottom,do_trans,depth,do_legs,do_walls,thick,inset);
+   tri_head = generate_heightmesh (tri_head,hf,nx,ny,do_bottom,do_trans,depth,
+                                   do_legs,do_walls,thick,inset,do_texture_coords);
 
    // apply uniform scaling transformation
    if (do_rescale) {
@@ -285,6 +289,9 @@ int Usage(char progname[80],int status) {
        "   -inset val                                                              ",
        "               wall or leg inset, (in non-dimensional units)               ",
        "               default is 0.2                                              ",
+       "                                                                           ",
+       "   -texture                                                                ",
+       "               generate and write texture coordinates for the top surface  ",
        "                                                                           ",
        "   -help       (in place of infile) returns this help information          ",
        " ",
