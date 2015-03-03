@@ -1485,7 +1485,6 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
 
    int i;
    int input_format = 0;	// integer flag for input file type
-   VEC test;
    char onechar,anotherchar;
    char twochar[2];
    char sbuf[128];
@@ -1568,6 +1567,7 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
 
    } else {
 
+   VEC test;
    // read the input file and update statistics
    while (fread(&onechar,sizeof(char),1,ifp) == 1) {
 
@@ -1606,7 +1606,9 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
    fprintf(stderr,"\n");
 
    }
-   fclose(ifp);
+
+   // why does it die on closing?
+   //fclose(ifp);
 
    return(0);
 }
