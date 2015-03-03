@@ -292,10 +292,10 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
    ithick = (int)(thick/hscale + 0.8);
    if (ithick < 1) ithick = 1;
    //fprintf(stderr,"thick %g %g %d\n",thick,thick/hscale,ithick);
-   if (do_legs) fprintf(stderr,"legs are %d cells thick",ithick);
-   if (do_walls) fprintf(stderr,"walls are %d cells thick",ithick);
+   if (do_legs) fprintf(stderr,"  legs are %d cells thick\n",ithick);
+   if (do_walls) fprintf(stderr,"  walls are %d cells thick\n",ithick);
    iinset = (int)(inset/hscale + 0.8);
-   if (do_walls || do_legs) fprintf(stderr," and inset %d cells\n",iinset);
+   if (do_walls || do_legs) fprintf(stderr,"  and inset %d cells\n",iinset);
    //fprintf(stderr,"inset %g %g %d\n",inset,inset/hscale,iinset);
 
    // prepare the logical array of legs/walls
