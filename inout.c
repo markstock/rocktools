@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2002-4,6,13-14  Mark J. Stock
+ * Copyright (C) 1999,2002-4,6,13-15  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,7 +48,7 @@ int write_rad(tri_pointer, int);
 int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
 
-int find_mesh_stats(char *,VEC*,VEC*,int*,int*);
+int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,int*,int*);
 int get_tri(FILE*,int,tri_pointer);
 int write_tri(FILE*,int,tri_pointer);
 
@@ -1479,9 +1479,9 @@ int write_rib(tri_pointer head, int keep_norms) {
  * find_mesh_stats
  *
  * parse through a raw, tin, rad, or obj file and find the min and max
- * bounds, and the triangle and node count (if possible)
+ * bounds, center of mass, and the triangle and node count (if possible)
  */
-int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_nodes) {
+int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC* bmax, int doCM, VEC* cm, int* num_tris, int* num_nodes) {
 
    int i;
    int input_format = 0;	// integer flag for input file type
@@ -1489,7 +1489,8 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
    char twochar[2];
    char sbuf[128];
    char xs[20],ys[20],zs[20];
-   char extension[4];		/* filename extension if infile */
+   char extension[4];		// filename extension if infile
+   VEC* loc;
    tri_pointer the_tri;
    FILE *ifp;
 
@@ -1502,7 +1503,9 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
    bmax->y = -9.9e+9;
    bmin->z = 9.9e+9;
    bmax->z = -9.9e+9;
-
+   cm->x = 0.0;
+   cm->y = 0.0;
+   cm->z = 0.0;
 
    /* Determine the input file format from the .XXX extension, and read it */
    strncpy(extension,infile+strlen(infile)-3,4);
@@ -1556,6 +1559,19 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
          if (the_tri->node[i]->loc.z > bmax->z) bmax->z = the_tri->node[i]->loc.z;
       }
 
+      if (doCM) {
+         double thisVolume = (the_tri->node[0]->loc.x * (double)the_tri->node[1]->loc.y * the_tri->node[2]->loc.z
+                            - the_tri->node[0]->loc.x * (double)the_tri->node[2]->loc.y * the_tri->node[1]->loc.z
+                            - the_tri->node[1]->loc.x * (double)the_tri->node[0]->loc.y * the_tri->node[2]->loc.z
+                            + the_tri->node[1]->loc.x * (double)the_tri->node[2]->loc.y * the_tri->node[0]->loc.z
+                            + the_tri->node[2]->loc.x * (double)the_tri->node[0]->loc.y * the_tri->node[1]->loc.z
+                            - the_tri->node[2]->loc.x * (double)the_tri->node[1]->loc.y * the_tri->node[0]->loc.z);
+         thisVolume /= 6.0;
+         cm->x += 0.25 * thisVolume * (the_tri->node[0]->loc.x + the_tri->node[1]->loc.x + the_tri->node[2]->loc.x);
+         cm->y += 0.25 * thisVolume * (the_tri->node[0]->loc.y + the_tri->node[1]->loc.y + the_tri->node[2]->loc.y);
+         cm->z += 0.25 * thisVolume * (the_tri->node[0]->loc.z + the_tri->node[1]->loc.z + the_tri->node[2]->loc.z);
+      }
+
       // print a dot every DOTPER triangles
       if ((*num_tris)/DOTPER == ((*num_tris)+DPMO)/DOTPER) fprintf(stderr,".");
    }
@@ -1567,7 +1583,34 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
 
    } else {
 
+
+   // first, scan the file for nodes
+   if (doCM) {
+      while (fread(&onechar,sizeof(char),1,ifp) == 1) {
+         if (onechar == 'v') {
+            fread(&anotherchar,sizeof(char),1,ifp);
+            if (isspace(anotherchar)) {
+               (*num_nodes)++;
+            }
+         }
+         // anything else: skip it, do not add, do not write
+         fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
+         fscanf(ifp,"%[\n]",twochar);    // read newline
+      }
+
+      // allocate space for the nodes
+      loc = (VEC*)malloc((*num_nodes)*sizeof(VEC));
+      // close and re-open it
+      fclose(ifp);
+      ifp = fopen(infile,"r");
+      if (ifp==NULL) {
+         fprintf(stderr,"Could not open input file %s\n",infile);
+         exit(0);
+      }
+   }
+
    VEC test;
+   int nv = 0;
    // read the input file and update statistics
    while (fread(&onechar,sizeof(char),1,ifp) == 1) {
 
@@ -1589,13 +1632,69 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
             if (test.x < bmin->x) bmin->x = test.x;
             if (test.y < bmin->y) bmin->y = test.y;
             if (test.z < bmin->z) bmin->z = test.z;
-            (*num_nodes)++;
-         } else {
-            // if its not identifiable, skip it, do not scale, do not write
+
+            // need to save every node if we are to compute CM
+            if (doCM) {
+               loc[nv].x = test.x;
+               loc[nv].y = test.y;
+               loc[nv].z = test.z;
+            }
+
+            nv++;
+            //(*num_nodes)++;
          }
+         // if its not identifiable, skip it, do not scale, do not write
       } else if (onechar == 'f') {
          // read a triangle line
+
+         volatile int ni[3] = {0,0,0};
+
+         // read each set of values, like "39//123" or "5" or "1192/2524"
+         for (int nn=0; nn<3; nn++) {
+            char newval[32];
+            fscanf(ifp,"%s",newval);
+
+            // look for a slash
+            int i;
+            for (i=0; i<strlen(newval); i++) {
+               if (newval[i] == '/' || newval[i] == '\0') break;
+            }
+            char sub1[10];
+            strncpy(sub1,newval,i);
+            sub1[i] = '\0';
+            if (i>0) ni[nn] = atoi(sub1) - 1;
+
+            // should we continue?
+            if (newval[i] == '/') {
+              int j;
+              for (j=i+1; j<strlen(newval); j++) {
+                 if (newval[j] == '/' || newval[j] == '\0') break;
+              }
+
+              // should we continue?
+              if (newval[j] == '/') {
+                 int k;
+                 for (k=j+1; k<strlen(newval); k++) {
+                    if (newval[k] == '/' || newval[k] == '\0') break;
+                 }
+              }
+            }
+         }
+         if (doCM) {
+            double thisVolume = (loc[ni[0]].x * (double)loc[ni[1]].y * loc[ni[2]].z
+                               - loc[ni[0]].x * (double)loc[ni[2]].y * loc[ni[1]].z
+                               - loc[ni[1]].x * (double)loc[ni[0]].y * loc[ni[2]].z
+                               + loc[ni[1]].x * (double)loc[ni[2]].y * loc[ni[0]].z
+                               + loc[ni[2]].x * (double)loc[ni[0]].y * loc[ni[1]].z
+                               - loc[ni[2]].x * (double)loc[ni[1]].y * loc[ni[0]].z);
+            thisVolume /= 6.0;
+            cm->x += 0.25 * thisVolume * (loc[ni[0]].x + loc[ni[1]].x + loc[ni[2]].x);
+            cm->y += 0.25 * thisVolume * (loc[ni[0]].y + loc[ni[1]].y + loc[ni[2]].y);
+            cm->z += 0.25 * thisVolume * (loc[ni[0]].z + loc[ni[1]].z + loc[ni[2]].z);
+         }
+
          (*num_tris)++;
+
          // print a dot every DOTPER triangles
          if ((*num_tris)/DOTPER == ((*num_tris)+DPMO)/DOTPER) fprintf(stderr,".");
       }
@@ -1604,6 +1703,8 @@ int find_mesh_stats(char *infile, VEC *bmin, VEC *bmax, int *num_tris, int *num_
       fscanf(ifp,"%[\n]",twochar);    // read newline
    }
    fprintf(stderr,"\n");
+
+   if (doCM) free(loc);
 
    }
 

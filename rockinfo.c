@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004,2006,2008 Mark J. Stock
+ * Copyright (C) 1999,2004,2006,2008,2015 Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,37 +41,40 @@ text_ptr text_head = NULL;
 int Usage(char[80],int);
 
 // from inout.c
-extern int find_mesh_stats(char*, VEC*, VEC*, int*, int*);
+extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
 
 
 int main(int argc,char **argv) {
 
+   int doCM = FALSE;
    int num_nodes = 0;
    int num_tris = 0;
    VEC bmax,bmin;		// mesh bounds
-   char infile[80];		/* name of input file */
-   char progname[80];		/* name of binary executable */
-
-   bmin.x = 9.9e+9;
-   bmax.x = -9.9e+9;
-   bmin.y = 9.9e+9;
-   bmax.y = -9.9e+9;
-   bmin.z = 9.9e+9;
-   bmax.z = -9.9e+9;
+   VEC cm;				// center of mass
+   char infile[80];		// name of input file
+   char progname[80];	// name of binary executable
 
    /* Parse command-line args */
    (void) strcpy(progname,argv[0]);
-   if (argc > 2) (void) Usage(progname,0);
+   if (argc < 2) (void) Usage(progname,0);
    if (strncmp(argv[1], "-help", 2) == 0)
       (void) Usage(progname,0);
+   for (int i=2; i<argc; i++) {
+      if (strncmp(argv[i], "-cm", 2) == 0) {
+         doCM = TRUE;
+      } else {
+         (void) Usage(progname,0);
+      }
+   }
    (void) strcpy(infile,argv[1]);
 
-
    // external subroutine does all the work
-   find_mesh_stats(infile,&bmin,&bmax,&num_tris,&num_nodes);
+   find_mesh_stats(infile,&bmin,&bmax,doCM,&cm,&num_tris,&num_nodes);
 
    fprintf(stdout,"nodes %d tris %d ",num_nodes,num_tris);
-   fprintf(stdout,"x %g %g y %g %g z %g %g\n",bmin.x,bmax.x,bmin.y,bmax.y,bmin.z,bmax.z);
+   fprintf(stdout,"x %g %g y %g %g z %g %g",bmin.x,bmax.x,bmin.y,bmax.y,bmin.z,bmax.z);
+   if (doCM) fprintf(stdout," cm %g %g %g",cm.x,cm.y,cm.z);
+   fprintf(stdout,"\n");
 
    exit(0);
 }
@@ -86,6 +89,9 @@ int Usage(char progname[80],int status) {
    /* Usage for rockinfo */
    static char **cpp, *help_message[] =
    {
+       "   -cm         also compute and print center of mass                       ",
+       "                                                                           ",
+       "   -help       (in place of infile) returns this help information          ",
        " ",
        "The input file can be raw, tin, rad, or obj format, and the program requires",
        "   the input file to use its valid 3-character filename extension.",
