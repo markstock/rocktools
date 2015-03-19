@@ -1491,6 +1491,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
    char xs[20],ys[20],zs[20];
    char extension[4];		// filename extension if infile
    VEC* loc;
+   double totalVolume = 0.0;
    tri_pointer the_tri;
    FILE *ifp;
 
@@ -1567,6 +1568,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
                             + the_tri->node[2]->loc.x * (double)the_tri->node[0]->loc.y * the_tri->node[1]->loc.z
                             - the_tri->node[2]->loc.x * (double)the_tri->node[1]->loc.y * the_tri->node[0]->loc.z);
          thisVolume /= 6.0;
+         totalVolume += thisVolume;
          cm->x += 0.25 * thisVolume * (the_tri->node[0]->loc.x + the_tri->node[1]->loc.x + the_tri->node[2]->loc.x);
          cm->y += 0.25 * thisVolume * (the_tri->node[0]->loc.y + the_tri->node[1]->loc.y + the_tri->node[2]->loc.y);
          cm->z += 0.25 * thisVolume * (the_tri->node[0]->loc.z + the_tri->node[1]->loc.z + the_tri->node[2]->loc.z);
@@ -1591,12 +1593,14 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
             fread(&anotherchar,sizeof(char),1,ifp);
             if (isspace(anotherchar)) {
                (*num_nodes)++;
+               if ((*num_nodes)/DOTPER == ((*num_nodes)+DPMO)/DOTPER) fprintf(stderr,".");
             }
          }
          // anything else: skip it, do not add, do not write
          fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
          fscanf(ifp,"%[\n]",twochar);    // read newline
       }
+      fprintf(stderr,"\n");
 
       // allocate space for the nodes
       loc = (VEC*)malloc((*num_nodes)*sizeof(VEC));
@@ -1607,6 +1611,8 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
          fprintf(stderr,"Could not open input file %s\n",infile);
          exit(0);
       }
+      fprintf(stderr,"Re-opening file %s",infile);
+      fflush(stderr);
    }
 
    VEC test;
@@ -1647,47 +1653,50 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
       } else if (onechar == 'f') {
          // read a triangle line
 
-         volatile int ni[3] = {0,0,0};
-
-         // read each set of values, like "39//123" or "5" or "1192/2524"
-         for (int nn=0; nn<3; nn++) {
-            char newval[32];
-            fscanf(ifp,"%s",newval);
-
-            // look for a slash
-            int i;
-            for (i=0; i<strlen(newval); i++) {
-               if (newval[i] == '/' || newval[i] == '\0') break;
-            }
-            char sub1[10];
-            strncpy(sub1,newval,i);
-            sub1[i] = '\0';
-            if (i>0) ni[nn] = atoi(sub1) - 1;
-
-            // should we continue?
-            if (newval[i] == '/') {
-              int j;
-              for (j=i+1; j<strlen(newval); j++) {
-                 if (newval[j] == '/' || newval[j] == '\0') break;
-              }
-
-              // should we continue?
-              if (newval[j] == '/') {
-                 int k;
-                 for (k=j+1; k<strlen(newval); k++) {
-                    if (newval[k] == '/' || newval[k] == '\0') break;
-                 }
-              }
-            }
-         }
          if (doCM) {
-            double thisVolume = (loc[ni[0]].x * (double)loc[ni[1]].y * loc[ni[2]].z
-                               - loc[ni[0]].x * (double)loc[ni[2]].y * loc[ni[1]].z
-                               - loc[ni[1]].x * (double)loc[ni[0]].y * loc[ni[2]].z
-                               + loc[ni[1]].x * (double)loc[ni[2]].y * loc[ni[0]].z
-                               + loc[ni[2]].x * (double)loc[ni[0]].y * loc[ni[1]].z
-                               - loc[ni[2]].x * (double)loc[ni[1]].y * loc[ni[0]].z);
+            volatile int ni[3] = {0,0,0};
+
+            // read each set of values, like "39//123" or "5" or "1192/2524"
+            for (int nn=0; nn<3; nn++) {
+               char newval[32];
+               fscanf(ifp,"%s",newval);
+
+               // look for a slash
+               int i;
+               for (i=0; i<strlen(newval); i++) {
+                  if (newval[i] == '/' || newval[i] == '\0') break;
+               }
+               char sub1[10];
+               strncpy(sub1,newval,i);
+               sub1[i] = '\0';
+               if (i>0) ni[nn] = atoi(sub1) - 1;
+
+               // should we continue?
+               if (newval[i] == '/') {
+                 int j;
+                 for (j=i+1; j<strlen(newval); j++) {
+                    if (newval[j] == '/' || newval[j] == '\0') break;
+                 }
+
+                 // should we continue?
+                 if (newval[j] == '/') {
+                    int k;
+                    for (k=j+1; k<strlen(newval); k++) {
+                       if (newval[k] == '/' || newval[k] == '\0') break;
+                    }
+                 }
+               }
+            }
+            //fprintf(stderr,"  %d %d %d\n",ni[0],ni[1],ni[2]);
+            double thisVolume = loc[ni[0]].x * (double)loc[ni[1]].y * loc[ni[2]].z
+                              - loc[ni[0]].x * (double)loc[ni[2]].y * loc[ni[1]].z
+                              - loc[ni[1]].x * (double)loc[ni[0]].y * loc[ni[2]].z
+                              + loc[ni[1]].x * (double)loc[ni[2]].y * loc[ni[0]].z
+                              + loc[ni[2]].x * (double)loc[ni[0]].y * loc[ni[1]].z
+                              - loc[ni[2]].x * (double)loc[ni[1]].y * loc[ni[0]].z;
             thisVolume /= 6.0;
+            totalVolume += thisVolume;
+            //fprintf(stderr,"  %d %g\n",(*num_tris),thisVolume);
             cm->x += 0.25 * thisVolume * (loc[ni[0]].x + loc[ni[1]].x + loc[ni[2]].x);
             cm->y += 0.25 * thisVolume * (loc[ni[0]].y + loc[ni[1]].y + loc[ni[2]].y);
             cm->z += 0.25 * thisVolume * (loc[ni[0]].z + loc[ni[1]].z + loc[ni[2]].z);
@@ -1703,8 +1712,14 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
       fscanf(ifp,"%[\n]",twochar);    // read newline
    }
    fprintf(stderr,"\n");
+   //fprintf(stderr,"nv %d, numnodes %d\n",nv,(*num_nodes));
 
-   if (doCM) free(loc);
+   if (doCM) {
+      free(loc);
+      cm->x /= totalVolume;
+      cm->y /= totalVolume;
+      cm->z /= totalVolume;
+   }
 
    }
 
