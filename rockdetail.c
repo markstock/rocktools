@@ -283,6 +283,7 @@ int Usage(char progname[80],int status) {
        "               point from which to measure the distance, default = 0.01    ",
        "                                                                           ",
        "   -sph        force the shape to become a sphere at every level           ",
+       "   -sph rad    force the shape to become a sphere at the given radius      ",
        "                                                                           ",
        "   -seed vel   seed the random number generator with an unsigned integer,  ",
        "               defaul t=1                                                  ",
