@@ -445,7 +445,9 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
          }
 
          // make the two tris
-         if (do_texture_coords) {
+
+         // should this set of triangles get a texture?
+         if (do_texture_coords && i!=0 && i!=nx-2 && j!=0 && j!=ny-2) {
             tri_head = add_tris_with_nodes_tcs (tri_head,&num_tri,nodell,nodelr,nodeur,textll,textlr,textur);
             tri_head = add_tris_with_nodes_tcs (tri_head,&num_tri,nodell,nodeur,nodeul,textll,textur,textul);
          } else {
