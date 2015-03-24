@@ -41,8 +41,6 @@ void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
 int Usage(char[80],int);
 int write_seg_slice(FILE*, char*, double, node_ptr, node_ptr, VEC*, VEC*);
 
-// from inout.c
-extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
 
 int main(int argc,char **argv) {
 
@@ -120,7 +118,8 @@ int main(int argc,char **argv) {
    // determine the longest side ------------------------------------------
    if (use_dir == pick_shortest) {
       // call a routine that scans the file and returns the edge lengths
-      find_mesh_stats(infile,&bmin,&bmax,FALSE,&cm,&num_tris,&num_nodes);
+      float tempf;
+      find_mesh_stats(infile,&bmin,&bmax,FALSE,&cm,&tempf,&num_tris,&num_nodes);
 
       // then, compare them to find the splitting direction and value
       if (bmax.x-bmin.x < bmax.y-bmin.y) {

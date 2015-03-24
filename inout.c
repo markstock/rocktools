@@ -48,7 +48,7 @@ int write_rad(tri_pointer, int);
 int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
 
-int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,int*,int*);
+int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,float*,int*,int*);
 int get_tri(FILE*,int,tri_pointer);
 int write_tri(FILE*,int,tri_pointer);
 
@@ -1481,7 +1481,9 @@ int write_rib(tri_pointer head, int keep_norms) {
  * parse through a raw, tin, rad, or obj file and find the min and max
  * bounds, center of mass, and the triangle and node count (if possible)
  */
-int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC* bmax, int doCM, VEC* cm, int* num_tris, int* num_nodes) {
+int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC* bmax,
+      int doCM, VEC* cm, float* vol,
+      int* num_tris, int* num_nodes) {
 
    int i;
    int input_format = 0;	// integer flag for input file type
@@ -1579,6 +1581,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
    }
    fprintf(stderr,"\n");
 
+   *vol = totalVolume;
    *num_nodes = (*num_tris)*3;
 
    // for obj, use this method: ----------------------------------------------
@@ -1719,6 +1722,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
       cm->x /= totalVolume;
       cm->y /= totalVolume;
       cm->z /= totalVolume;
+      *vol = totalVolume;
    }
 
    }

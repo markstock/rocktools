@@ -41,7 +41,7 @@ text_ptr text_head = NULL;
 int Usage(char[80],int);
 
 // from inout.c
-extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
+//extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
 
 
 int main(int argc,char **argv) {
@@ -50,7 +50,8 @@ int main(int argc,char **argv) {
    int num_nodes = 0;
    int num_tris = 0;
    VEC bmax,bmin;		// mesh bounds
-   VEC cm;				// center of mass
+   VEC cm;			// center of mass
+   float volume;		// enclosed volume
    char infile[80];		// name of input file
    char progname[80];	// name of binary executable
 
@@ -69,11 +70,11 @@ int main(int argc,char **argv) {
    (void) strcpy(infile,argv[1]);
 
    // external subroutine does all the work
-   find_mesh_stats(infile,&bmin,&bmax,doCM,&cm,&num_tris,&num_nodes);
+   find_mesh_stats(infile,&bmin,&bmax,doCM,&cm,&volume,&num_tris,&num_nodes);
 
    fprintf(stdout,"nodes %d tris %d ",num_nodes,num_tris);
    fprintf(stdout,"x %g %g y %g %g z %g %g",bmin.x,bmax.x,bmin.y,bmax.y,bmin.z,bmax.z);
-   if (doCM) fprintf(stdout," cm %g %g %g",cm.x,cm.y,cm.z);
+   if (doCM) fprintf(stdout," cm %g %g %g vol %g",cm.x,cm.y,cm.z,volume);
    fprintf(stdout,"\n");
 
    exit(0);
