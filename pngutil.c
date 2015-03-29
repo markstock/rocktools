@@ -4,7 +4,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-12  Mark J. Stock
+ * Copyright (C) 2004-15  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,7 +38,7 @@ double find_optimum_offset_z (int, int, float**, int, int, double, double);
 tri_pointer add_tris_with_nodes (tri_pointer, int*, node_ptr, node_ptr, node_ptr);
 tri_pointer add_tris_with_nodes_tcs (tri_pointer, int*, node_ptr, node_ptr, node_ptr, text_ptr, text_ptr, text_ptr);
 tri_pointer add_twotris_by_fournodes (tri_pointer, int*, node_ptr, node_ptr, node_ptr, node_ptr);
-tri_pointer add_manytris_by_fournodes (tri_pointer, int*, int*, BIN*, node_ptr, node_ptr, node_ptr, node_ptr);
+tri_pointer add_manytris_by_fournodes (tri_pointer, int*, int*, BIN*, int, node_ptr, node_ptr, node_ptr, node_ptr);
 unsigned char** prepare_flag_array (int, int, int, int, int, int);
 unsigned char** allocate_2d_array_uc (int,int);
 int fillet_bottom_heights (unsigned char**, float**, int, int, double, double);
@@ -263,15 +263,16 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
                                  int do_legs, int do_walls, double thick, double inset,
                                  int do_texture_coords) {
 
+   int rotate_for_curvature = TRUE;
+   static int numCells = 25;
+   double hscale = 1.0;
    int i,j,k,l;
    int num_tri = 0;
    int num_nodes = 0;
    int num_texts = 0;
-   int rotate_for_curvature = TRUE;
    int need_side;
    int ithick,iinset;
    float **bf = NULL;
-   double hscale = 1.0;
    double meanelev,thiselev,dx,dy,ixx,iyy,ixy,tra; //,eigv1,eigv2;
    unsigned char **legflag = NULL;
    VEC nmin,nmax,location;
@@ -312,7 +313,9 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
          // simple: constant thickness, vertically
          for (i=0; i<nx; i++) {
             for (j=0; j<ny; j++) {
-               bf[i][j] = -hf[i][j];
+               //bf[i][j] = -hf[i][j];
+               bf[i][j] = -2.0*hf[i][j];
+               hf[i][j] = 0.0;
             }
          }
 
@@ -568,7 +571,7 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
                }
                nodeul = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
                // make the two tris
-               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,nodell,nodelr,nodeur,nodeul);
+               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,numCells,nodell,nodelr,nodeur,nodeul);
             }
 
             // does it need a lower panel?
@@ -616,7 +619,7 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
                }
                nodeul = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
                // make the two tris
-               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,nodell,nodelr,nodeur,nodeul);
+               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,numCells,nodell,nodelr,nodeur,nodeul);
             }
 
             // does it need a right panel?
@@ -664,7 +667,7 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
                }
                nodeul = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
                // make the two tris
-               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,nodell,nodelr,nodeur,nodeul);
+               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,numCells,nodell,nodelr,nodeur,nodeul);
             }
 
             // does it need an upper panel?
@@ -712,7 +715,7 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
                }
                nodeul = add_to_nodes_list(new_tri,&num_nodes,0,&location,&nodebin);
                // make the two tris
-               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,nodell,nodelr,nodeur,nodeul);
+               tri_head = add_manytris_by_fournodes (tri_head,&num_tri,&num_nodes,&nodebin,numCells,nodell,nodelr,nodeur,nodeul);
             }
 
          } // end if do_bottom
@@ -999,10 +1002,11 @@ tri_pointer add_twotris_by_fournodes (tri_pointer tri_head, int* num_tri,
  */
 tri_pointer add_manytris_by_fournodes (tri_pointer tri_head, int* num_tri,
                               int* num_nodes, BIN* nodebin,
+                              int numCells,
                               node_ptr ll, node_ptr lr,
                               node_ptr ur, node_ptr ul) {
 
-   static int numCells = 20;
+   //static int numCells = 20;
    int i;
    VEC location;
    tri_pointer new_tri = NULL;

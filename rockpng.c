@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2003-2004,2006-2007,2010-14  Mark J. Stock
+ * Copyright (C) 1999,2003-2004,2006-2007,2010-15  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -195,9 +195,14 @@ int main(int argc,char **argv) {
       }
    }
    fprintf(stderr,"Found min/max of %g / %g\n",initmin,initmax);
-   fprintf(stderr,"Scaling height to %g : %g\n",hmin,hmax);
+   fprintf(stderr,"Scaling height to %g / %g\n",hmin,hmax);
    fflush(stderr);
    // now scale
+   if (initmin == initmax) {
+      // in case the entire image is the same color
+      initmin = 0.0;
+      initmax = 1.0;
+   }
    for (i=0; i<nx; i++) {
       for (j=0; j<ny; j++) {
          hf[i][j] = (float)(hmin + ((double)hf[i][j]-initmin)*(hmax-hmin)/(initmax-initmin));
