@@ -44,6 +44,7 @@
 #define BIN_COUNT 10000
 /*#define MAX_CONN 20*/
 #define MAX_ADJ 10
+#define MAX_FN_LEN 1024
 
 #define M_PI           3.14159265358979323846
 

@@ -33,11 +33,11 @@
 
 #include "structs.h"
 
-tri_pointer read_input(char[80],int,tri_pointer);
-tri_pointer read_raw(char[80],tri_pointer);
-tri_pointer read_tin(char[80],tri_pointer);
-tri_pointer read_obj(char[80],int,tri_pointer);
-tri_pointer read_msh(char[80],tri_pointer);
+tri_pointer read_input(char[MAX_FN_LEN],int,tri_pointer);
+tri_pointer read_raw(char[MAX_FN_LEN],tri_pointer);
+tri_pointer read_tin(char[MAX_FN_LEN],tri_pointer);
+tri_pointer read_obj(char[MAX_FN_LEN],int,tri_pointer);
+tri_pointer read_msh(char[MAX_FN_LEN],tri_pointer);
 
 int write_output(tri_pointer, char[4], int, int, char**);
 int write_raw(tri_pointer, int);
@@ -56,7 +56,7 @@ int write_tri(FILE*,int,tri_pointer);
 /*
  * Determine file type and run appropriate read routine
  */
-tri_pointer read_input(char infile[80],int invert,tri_pointer tri_head) {
+tri_pointer read_input(char infile[MAX_FN_LEN],int invert,tri_pointer tri_head) {
 
    //int dummy;
    char extension[4];		/* filename extension if infile */
@@ -101,7 +101,7 @@ tri_pointer read_input(char infile[80],int invert,tri_pointer tri_head) {
  */
 //#pragma GCC push_options
 //#pragma GCC optimize ("O0")
-tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[80],int invert,tri_pointer tri_head) {
+tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[MAX_FN_LEN],int invert,tri_pointer tri_head) {
 
    int inode = 0;
    int inorm = 0;
@@ -112,8 +112,8 @@ tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[80],int inver
    int num_texts = 0;
    char onechar[2],anotherchar[2];
    char twochar[3];
-   char sbuf[128];
-   char xs[20],ys[20],zs[20];
+   char sbuf[256];
+   char xs[64],ys[64],zs[64];
    VEC *loc = NULL;
    VEC *normal = NULL;
    UV *texture = NULL;
@@ -158,7 +158,7 @@ tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[80],int inver
          if (isspace(anotherchar[0])) {
             // read a vertex location
             fscanf(fp,"%s %s %s",xs,ys,zs);
-            //fprintf(stderr,"%d  %s %s %s\n",i,xs,ys,zs); fflush(stderr);
+            //fprintf(stderr,"  %s %s %s\n",xs,ys,zs); fflush(stderr);
             test.x = atof(xs);
             test.y = atof(ys);
             test.z = atof(zs);
@@ -430,7 +430,7 @@ tri_pointer __attribute__((optimize("O0"))) read_obj(char filename[80],int inver
  * ordered in a counter-clockwise pattern when viewed from the
  * top (outside).
  */
-tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
+tri_pointer read_raw (char filename[MAX_FN_LEN],tri_pointer tri_head) {
 
    int i,j,icnt;
    int num_tri = 0;
@@ -633,7 +633,7 @@ tri_pointer read_raw (char filename[80],tri_pointer tri_head) {
  * ordered in a counter-clockwise pattern when viewed from the
  * top (outside).
  */
-tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
+tri_pointer read_tin (char filename[MAX_FN_LEN],tri_pointer tri_head) {
 
    int i,j,icnt,err;
    int num_tri = 0;
@@ -874,7 +874,7 @@ tri_pointer read_tin (char filename[80],tri_pointer tri_head) {
 /*
  * Read in a GMSH Mesh (.msh) file
  */
-tri_pointer read_msh (char filename[80],tri_pointer tri_head) {
+tri_pointer read_msh (char filename[MAX_FN_LEN],tri_pointer tri_head) {
 
    int i,j;
    int num_tri = 0;
@@ -1489,8 +1489,8 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
    int input_format = 0;	// integer flag for input file type
    char onechar,anotherchar;
    char twochar[2];
-   char sbuf[128];
-   char xs[20],ys[20],zs[20];
+   char sbuf[256];
+   char xs[64],ys[64],zs[64];
    char extension[4];		// filename extension if infile
    VEC* loc;
    double totalVolume = 0.0;
@@ -1620,6 +1620,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
 
    VEC test;
    int nv = 0;
+   (*num_nodes) = 0;
    // read the input file and update statistics
    while (fread(&onechar,sizeof(char),1,ifp) == 1) {
 
@@ -1650,7 +1651,7 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
             }
 
             nv++;
-            //(*num_nodes)++;
+            (*num_nodes)++;
          }
          // if its not identifiable, skip it, do not scale, do not write
       } else if (onechar == 'f') {
