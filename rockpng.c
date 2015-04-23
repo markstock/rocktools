@@ -173,13 +173,14 @@ int main(int argc,char **argv) {
       for (i=0; i<nx; i++) {
          for (j=0; j<ny; j++) {
             //hf[i][j] = (double)log(0.05+hf[i][j]);
-            // add a tad to make sure we don't get zero
-            hf[i][j] += 0.03;
             // ungamma-correct
             //hf[i][j] = expf(0.45*logf(hf[i][j]));
             // scale value to thickness
-            hf[i][j] = logf(1./hf[i][j]);
+            // add a tad to make sure we don't get zero
+            //hf[i][j] = logf(1./(hf[i][j]+0.03);
             // min thickness will be applied later
+            // even better: a flatter curve
+            hf[i][j] = 0.1+logf(1./(hf[i][j]+0.1));
          }
       }
    }

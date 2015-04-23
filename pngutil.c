@@ -314,8 +314,12 @@ tri_pointer generate_heightmesh (tri_pointer tri_head, float **hf, int nx, int n
          for (i=0; i<nx; i++) {
             for (j=0; j<ny; j++) {
                //bf[i][j] = -hf[i][j];
-               bf[i][j] = -2.0*hf[i][j];
-               hf[i][j] = 0.0;
+               // NO, this looks bad!
+               //bf[i][j] = -2.0*hf[i][j];
+               //hf[i][j] = 0.0;
+               // put all the data on the front!
+               hf[i][j] *= 2.0;
+               bf[i][j] = 0.0;
             }
          }
 
