@@ -47,7 +47,7 @@ VEC find_tri_normal(tri_pointer);
 VEC find_normal(VEC,VEC,VEC);
 double find_tri_dist(tri_pointer,VEC);
 int inside_bounds(double,double,double);
-
+VEC find_cm(tri_pointer);
 
 /*
  * Safely allocate a new triangle
@@ -72,6 +72,22 @@ tri_pointer alloc_new_tri() {
    new_tri->next_tri = NULL;
 
    return new_tri;
+}
+
+/*
+ * Safely remove a triangle (this means removing normals and texture coords, but not nodes)
+ * Returns pointer to next tri
+ */
+tri_pointer delete_tri (tri_pointer this) {
+   tri_pointer newhead = this->next_tri;
+
+   // delete attached norms and textures, but not nodes or adjacents
+   for (int i=0; i<3; i++) if (this->norm[i]) free (this->norm[i]);
+   for (int i=0; i<3; i++) if (this->texture[i]) free (this->texture[i]);
+
+   free(this);
+
+   return newhead;
 }
 
 /*
@@ -1048,3 +1064,33 @@ int inside_bounds(double test_value, double low_bound, double high_bound) {
    return (TRUE);
 }
 
+/*
+ * Compute and return the center of mass of the (hopefully closed) object
+ */
+VEC find_cm(tri_pointer this_head) {
+
+   VEC cm;
+   cm.x = 0.0;
+   cm.y = 0.0;
+   cm.z = 0.0;
+
+   tri_pointer this = this_head;
+
+   while (this) {
+
+      double thisVolume = (this->node[0]->loc.x * (double)this->node[1]->loc.y * this->node[2]->loc.z
+                         - this->node[0]->loc.x * (double)this->node[2]->loc.y * this->node[1]->loc.z
+                         - this->node[1]->loc.x * (double)this->node[0]->loc.y * this->node[2]->loc.z
+                         + this->node[1]->loc.x * (double)this->node[2]->loc.y * this->node[0]->loc.z
+                         + this->node[2]->loc.x * (double)this->node[0]->loc.y * this->node[1]->loc.z
+                         - this->node[2]->loc.x * (double)this->node[1]->loc.y * this->node[0]->loc.z);
+      thisVolume /= 6.0;
+      cm.x += 0.25 * thisVolume * (this->node[0]->loc.x + this->node[1]->loc.x + this->node[2]->loc.x);
+      cm.y += 0.25 * thisVolume * (this->node[0]->loc.y + this->node[1]->loc.y + this->node[2]->loc.y);
+      cm.z += 0.25 * thisVolume * (this->node[0]->loc.z + this->node[1]->loc.z + this->node[2]->loc.z);
+
+      this = this->next_tri;
+   }
+
+   return cm;
+}

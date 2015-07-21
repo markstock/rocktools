@@ -226,6 +226,7 @@ extern norm_ptr norm_head;
 extern text_ptr text_head;
 
 extern tri_pointer alloc_new_tri();
+extern tri_pointer delete_tri (tri_pointer);
 extern node_ptr add_to_nodes_list(tri_pointer,int*,int,VEC*,bin_ptr);
 extern norm_ptr add_to_norms_list(int*,VEC*,nbin_ptr);
 extern text_ptr add_to_textures_list (int*, UV*, tbin_ptr);
@@ -265,5 +266,6 @@ extern int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,float*,int*,int*);
 extern int get_tri(FILE*,int,tri_pointer);
 extern int write_tri(FILE*,int,tri_pointer);
 extern int inside_bounds(double,double,double);
+extern VEC find_cm(tri_pointer);
 
 /* end */
