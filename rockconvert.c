@@ -41,14 +41,14 @@ int num_tri = 0;
 
 void rescale_nodes (VEC);
 void translate_nodes (VEC);
-int Usage(char[160],int);
+int Usage(char[255],int);
 
 
 int main(int argc,char **argv) {
 
    int i;
-   char infile[160];		/* name of input file */
-   char progname[160];		/* name of binary executable */
+   char infile[255];		/* name of input file */
+   char progname[255];		/* name of binary executable */
    char output_format[4];	/* file format extension for output */
    tri_pointer tri_head = NULL;
    int keep_normals = TRUE;
@@ -172,7 +172,7 @@ void translate_nodes (VEC trans) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[255],int status) {
 
    /* Usage for rockconvert */
    static char **cpp, *help_message[] =

@@ -38,7 +38,7 @@ norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
 // this subroutine appears in this file
-int Usage(char[80],int);
+int Usage(char[255],int);
 
 // from inout.c
 //extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
@@ -52,8 +52,8 @@ int main(int argc,char **argv) {
    VEC bmax,bmin;		// mesh bounds
    VEC cm;			// center of mass
    float volume;		// enclosed volume
-   char infile[80];		// name of input file
-   char progname[80];	// name of binary executable
+   char infile[255];		// name of input file
+   char progname[255];	// name of binary executable
 
    /* Parse command-line args */
    (void) strcpy(progname,argv[0]);
@@ -85,7 +85,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[255],int status) {
 
    /* Usage for rockinfo */
    static char **cpp, *help_message[] =
