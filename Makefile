@@ -42,6 +42,7 @@ EXE = rockdetail\
 	rockpng\
 	rockslice\
 	rockbob\
+	rockbalance\
 	rockinfo
 
 all : $(EXE)
@@ -62,6 +63,7 @@ install : $(EXE)
 	cp rockdice $(BIN)/rockdice
 	cp rockslice $(BIN)/rockslice
 	cp rockbob $(BIN)/rockbob
+	cp rockbalance $(BIN)/rockbalance
 
 # alternatively, make vort3d with the debug flags turned on
 debug: CFLAGS = -pg -ggdb -Wall -ftrapv
@@ -72,6 +74,9 @@ debug: all
 
 #objects/%.o : %.c $(HFILES)
 #	$(CC) $(CFLAGS) -c -o $@ $<
+
+rockbalance: rockbalance.c $(CFILES) convexhull.c $(HFILES) Makefile
+	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rockbalance.c $(CFILES) convexhull.c $(LIBS)
 
 rockcreate: rockcreate.c createutil.c $(CFILES) convexhull.c $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rockcreate.c createutil.c $(CFILES) convexhull.c $(LIBS)
