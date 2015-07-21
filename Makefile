@@ -73,8 +73,8 @@ debug: all
 #objects/%.o : %.c $(HFILES)
 #	$(CC) $(CFLAGS) -c -o $@ $<
 
-rockcreate: rockcreate.c createutil.c $(CFILES) $(HFILES) Makefile
-	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rockcreate.c createutil.c $(CFILES) $(LIBS)
+rockcreate: rockcreate.c createutil.c $(CFILES) convexhull.c $(HFILES) Makefile
+	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -o $@ rockcreate.c createutil.c $(CFILES) convexhull.c $(LIBS)
 
 rockdetail: rockdetail.c detailutil.c smoothutil.c $(CFILES) $(HFILES) Makefile
 	$(CC) $(CFLAGS) -DADJ_NODE -DCONN -DDETAIL -o $@ rockdetail.c detailutil.c smoothutil.c $(CFILES) $(LIBS)
