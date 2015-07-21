@@ -1073,6 +1073,7 @@ VEC find_cm(tri_pointer this_head) {
    cm.x = 0.0;
    cm.y = 0.0;
    cm.z = 0.0;
+   double totalVolume = 0.0;
 
    tri_pointer this = this_head;
 
@@ -1085,12 +1086,17 @@ VEC find_cm(tri_pointer this_head) {
                          + this->node[2]->loc.x * (double)this->node[0]->loc.y * this->node[1]->loc.z
                          - this->node[2]->loc.x * (double)this->node[1]->loc.y * this->node[0]->loc.z);
       thisVolume /= 6.0;
+      totalVolume += thisVolume;
       cm.x += 0.25 * thisVolume * (this->node[0]->loc.x + this->node[1]->loc.x + this->node[2]->loc.x);
       cm.y += 0.25 * thisVolume * (this->node[0]->loc.y + this->node[1]->loc.y + this->node[2]->loc.y);
       cm.z += 0.25 * thisVolume * (this->node[0]->loc.z + this->node[1]->loc.z + this->node[2]->loc.z);
 
       this = this->next_tri;
    }
+
+   cm.x /= totalVolume;
+   cm.y /= totalVolume;
+   cm.z /= totalVolume;
 
    return cm;
 }
