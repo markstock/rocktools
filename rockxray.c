@@ -39,14 +39,14 @@ norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
 extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,char*,int);
-int Usage(char[80],int);
+int Usage(char[255],int);
 
 int main(int argc,char **argv) {
 
    int i,do_volume,max_size,force_square,quality,write_hibit;
    int force_num_threads = -1;
-   char infile[80];				/* name of input file */
-   char progname[80];				/* name of binary executable */
+   char infile[255];				/* name of input file */
+   char progname[255];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
    double thickness;				/* thickness of mesh, world coords */
    double border;				/* thickness of image border, fraction */
@@ -149,7 +149,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[255],int status) {
 
    /* Usage for rockxray */
    static char **cpp, *help_message[] =
@@ -169,6 +169,10 @@ int Usage(char progname[80],int status) {
        "               default=0.1                                                 ",
        "                                                                           ",
        "   -q          create higher quality image at the expense of compute time  ",
+       "                                                                           ",
+       "   -qq         creates even higher quality image                           ",
+       "                                                                           ",
+       "   -qqq        creates highest quality image---takes very long!            ",
        "                                                                           ",
        "   -t num      thickness of the mesh in world coordinates,                 ",
        "               default = (1 layer), regardless of resolution               ",
@@ -190,9 +194,9 @@ int Usage(char progname[80],int status) {
        "                                                                           ",
        "   -r [res]    pixel resolution of the long edge of the image, default=512 ",
        "                                                                           ",
-       "   -okey       specify output format, key= pgm, png, default = png         ",
+       "   -n num      force this number of threads (default is number of cores)   ",
        "                                                                           ",
-       "   -n num      force this number of threads                                ",
+       "   -okey       specify output format, key= pgm, png, default = png         ",
        "                                                                           ",
        "   -help       returns this help information                               ",
        " ",
