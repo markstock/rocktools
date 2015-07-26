@@ -5,7 +5,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-14  Mark J. Stock
+ * Copyright (C) 2004-15  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@ int Usage(char[80],int);
 
 int main(int argc,char **argv) {
 
-   int i,do_volume,max_size,force_square,hiquality,write_hibit;
+   int i,do_volume,max_size,force_square,quality,write_hibit;
    int force_num_threads = -1;
    char infile[80];				/* name of input file */
    char progname[80];				/* name of binary executable */
@@ -61,7 +61,7 @@ int main(int argc,char **argv) {
    viewp.z = 0.0;
    max_size = 512;				// default is sane, now
    force_square = FALSE;
-   hiquality = FALSE;
+   quality = 0;					// 0 is default, 1 higher, 2 very high
    write_hibit = FALSE;
    do_volume = FALSE;
    border = 0.1;
@@ -100,8 +100,12 @@ int main(int argc,char **argv) {
          force_square = TRUE;
       } else if (strncmp(argv[i], "-v", 2) == 0) {
          do_volume = TRUE;
+      } else if (strncmp(argv[i], "-qqq", 4) == 0) {
+         quality = 3;
+      } else if (strncmp(argv[i], "-qq", 3) == 0) {
+         quality = 2;
       } else if (strncmp(argv[i], "-q", 2) == 0) {
-         hiquality = TRUE;
+         quality = 1;
       } else if (strncmp(argv[i], "-b", 2) == 0) {
          border = atof(argv[++i]);
       } else if (strncmp(argv[i], "-pc", 3) == 0) {
@@ -133,7 +137,7 @@ int main(int argc,char **argv) {
 
    /* Write the image to stdout */
    (void) write_xray(tri_head,viewp,xb,yb,max_size,thickness,force_square,
-                     border,hiquality,peak_crop,gamma,write_hibit,do_volume,
+                     border,quality,peak_crop,gamma,write_hibit,do_volume,
                      output_format,force_num_threads);
 
    fprintf(stderr,"Done.\n");

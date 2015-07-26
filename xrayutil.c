@@ -6,7 +6,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-14  Mark J. Stock
+ * Copyright (C) 2004-15  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,10 +53,10 @@ int write_png_image(png_byte**,int,int,int);
  * "size" is the final image pixel resolution desired
  * "thick" is the thickness of the mesh, in world units
  * "square" forces a square image, and centers the object (TRUE|FALSE)
- * "hiq" toggles higher-quality rendering (TRUE|FALSE)
+ * "thisq" sets quality (0=low, 1=med, 2=high, 3=very high)
  */
 int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
-      double thick, int square, double border, int hiq, double peak_crop, double gamma,
+      double thick, int square, double border, int thisq, double peak_crop, double gamma,
       int write_hibit, int is_solid, char* output_format, int force_num_threads) {
 
    // int is_solid = TRUE;		// xray interior, not just boundary
@@ -194,8 +194,9 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    // find out how many layers we need (thick==-1 if not entered)
    if (thick > 0.0) {
       float fthick;
-      if (hiq) fthick = 3.3*thick/dd;
-      else fthick = 2.0*thick/dd;
+      //if (hiq) fthick = 3.3*thick/dd;
+      //else fthick = 2.0*thick/dd;
+      fthick = (2.0+1.3*thisq) * thick/dd;
       num_layers = (int)fthick;
       if (num_layers < 1) num_layers = 1;
       fprintf(stderr,"Using %d layers (%g raw thickness)\n",num_layers,fthick); fflush(stderr);
@@ -362,9 +363,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       //}
 
       // new method:
-      int subdivisions;
-      if (hiq) subdivisions = (int)(4.0*sidelen/dd);
-      else subdivisions = (int)(2.5*sidelen/dd);
+      //int subdivisions;
+      //if (hiq) subdivisions = (int)(4.0*sidelen/dd);
+      //else subdivisions = (int)(2.5*sidelen/dd);
+      int subdivisions = (int)((2.5+1.5*thisq)*sidelen/dd);
       if (subdivisions < 1) subdivisions = 1;
       // if (subdivisions > 400) subdivisions = 400;
       //fprintf(stderr,"sidelen/dd is %g, area is %g, sidelen is %g\n",sidelen/dd,area,sidelen);
