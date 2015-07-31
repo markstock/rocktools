@@ -38,16 +38,18 @@ node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
-extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,char*,int);
+extern int write_xray(tri_pointer,VEC,double*,double*,int,double,int,double,int,double,double,int,int,int,char*,char*,int);
 int Usage(char[255],int);
 
 int main(int argc,char **argv) {
 
    int i,do_volume,max_size,force_square,quality,write_hibit;
    int force_num_threads = -1;
+   int num_layers;				// how many layers to render to?
    char infile[255];				/* name of input file */
    char progname[255];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
+   char out_prefix[255];			/* prefix to use for output files */
    double thickness;				/* thickness of mesh, world coords */
    double border;				/* thickness of image border, fraction */
    double peak_crop;				/* muliplier on image value to crop peaks */
@@ -61,6 +63,7 @@ int main(int argc,char **argv) {
    viewp.z = 0.0;
    max_size = 512;				// default is sane, now
    force_square = FALSE;
+   num_layers = 1;
    quality = 0;					// 0 is default, 1 higher, 2 very high
    write_hibit = FALSE;
    do_volume = FALSE;
@@ -74,6 +77,7 @@ int main(int argc,char **argv) {
    yb[0] = -1;					// negative means "do not use bounds"
    yb[1] = 0;
    yb[2] = 0;
+   strcpy(out_prefix, "out");			// default output file name prefix
 
    /* Parse command-line args */
    (void) strcpy(progname,argv[0]);
@@ -122,6 +126,10 @@ int main(int argc,char **argv) {
          write_hibit = TRUE;
       } else if (strncmp(argv[i], "-o", 2) == 0) {
          strncpy(output_format,argv[i]+2,4);
+      } else if (strncmp(argv[i], "-layers", 2) == 0) {
+         num_layers = atoi(argv[++i]);
+      } else if (strncmp(argv[i], "-prefix", 3) == 0) {
+         strcpy(out_prefix,argv[++i]);
       } else if (strncmp(argv[i], "-n", 2) == 0) {
          force_num_threads = atoi(argv[++i]);
       } else
@@ -138,7 +146,7 @@ int main(int argc,char **argv) {
    /* Write the image to stdout */
    (void) write_xray(tri_head,viewp,xb,yb,max_size,thickness,force_square,
                      border,quality,peak_crop,gamma,write_hibit,do_volume,
-                     output_format,force_num_threads);
+                     num_layers,out_prefix,output_format,force_num_threads);
 
    fprintf(stderr,"Done.\n");
    exit(0);

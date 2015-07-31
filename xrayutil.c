@@ -44,7 +44,7 @@
 //#define USE_GAUSSIAN
 
 png_byte** allocate_2d_array_pb(int,int,int);
-int write_png_image(png_byte**,int,int,int);
+int write_png_image(png_byte**,int,int,int,char*,int,int);
 
 /*
  * Write a PGM image of the xray of the shell of a mesh
@@ -57,21 +57,20 @@ int write_png_image(png_byte**,int,int,int);
  */
 int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       double thick, int square, double border, int thisq, double peak_crop, double gamma,
-      int write_hibit, int is_solid, char* output_format, int force_num_threads) {
+      int write_hibit, int is_solid, int num_images, char* prefix, char* output_format,
+      int force_num_threads) {
 
-   // int is_solid = TRUE;		// xray interior, not just boundary
    int write_pgm;			// write a PGM file
    int write_png;			// write a PNG file
-   //int write_hibit = TRUE;		// write a 16-bit image (instead of 8)
    int cnt;
    int xres,yres;			// the actual image size
-   float **a;				// the array to print
+   float ***a;				// the array to print
    png_byte **img = NULL;		// the png array
-   double dtemp,xsize,ysize,dd;
+   double dtemp,xsize,ysize,zsize,dd,ddz;
    double xmin,xmax,ymin,ymax;		// bounds of the image
    double zmin,zmax;			// bounds in the image direction
    VEC vx,vy;				// image basis vectors
-   int num_layers;			// number of subdivisions in normal direction
+   int num_norm_layers;			// number of subdivisions in normal direction
    tri_pointer this_tri;
    node_ptr this_node;
 
@@ -191,36 +190,48 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    fprintf(stderr,"Final image to be %d x %d\n",xres,yres);
    //fprintf(stderr,"  new xmin,ymin %g %g, dd %g\n",xmin,ymin,dd);
 
-   // find out how many layers we need (thick==-1 if not entered)
+
+   // and in the z direction?
+   zsize = zmax-zmin;
+   zmin -= 0.01*zsize;
+   zmax += 0.01*zsize;
+
+   // set ddz, a measure of how thick each z-layer is (each output image)
+   //   (add 1e-5 so that num_images of 1 doesn't futz things up)
+   ddz = (zmax-zmin)/(num_images - 1.0 + 1e-5);
+
+
+   // find out how many mesh layers we need (thick==-1 if not entered)
    if (thick > 0.0) {
       float fthick;
       //if (hiq) fthick = 3.3*thick/dd;
       //else fthick = 2.0*thick/dd;
       fthick = (2.0+1.3*thisq) * thick/dd;
-      num_layers = (int)fthick;
-      if (num_layers < 1) num_layers = 1;
-      fprintf(stderr,"Using %d layers (%g raw thickness)\n",num_layers,fthick); fflush(stderr);
+      num_norm_layers = (int)fthick;
+      if (num_norm_layers < 1) num_norm_layers = 1;
+      fprintf(stderr,"Using %d layers (%g raw thickness)\n",num_norm_layers,fthick); fflush(stderr);
    } else {
-      num_layers = 1;
+      num_norm_layers = 1;
       thick = 0.0;
    }
    if (is_solid) {
-      num_layers = 1;
+      num_norm_layers = 1;
       thick = 0.0;
    }
 
 
    // allocate the array(s)
-   a = allocate_2d_array_f(xres,yres);
-   if (write_png) {
-      if (write_hibit)
-         img = allocate_2d_array_pb(xres,yres,16);
-      else
-         img = allocate_2d_array_pb(xres,yres,8);
+   a = (float***)malloc(num_images*sizeof(float**));
+   for (int i=0; i<num_images; i++) {
+      a[i] = allocate_2d_array_f(xres,yres);
    }
+   
 
-   // zero out the array
-   for (int i=0; i<xres; i++) for (int j=0; j<yres; j++) a[i][j] = 0.0;
+   // zero out the arrays
+   for (int inum=0; inum<num_images; inum++)
+      for (int i=0; i<xres; i++)
+        for (int j=0; j<yres; j++)
+           a[inum][i][j] = 0.0;
 
 
    // then, loop through all elements, writing to the image
@@ -371,8 +382,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       // if (subdivisions > 400) subdivisions = 400;
       //fprintf(stderr,"sidelen/dd is %g, area is %g, sidelen is %g\n",sidelen/dd,area,sidelen);
 
-      // for is_solid, find the area of the triangle in the image plane
-      
+      // fprintf(stderr,"this tri is at %g %g %g, %g %g %g, %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,n1->loc.x,n1->loc.y,n1->loc.z,n2->loc.x,n2->loc.y,n2->loc.z);
 
       // now, subdivide in the tri-normal direction to simulate the
       //    thickness of the triangular prism
@@ -386,14 +396,14 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       // reset D to be 3*subdivisions
       const int D = 3*subdivisions;
-      double factor = (1.0e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
-      // fprintf(stderr,"this tri is at %g %g %g, %g %g %g, %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,n1->loc.x,n1->loc.y,n1->loc.z,n2->loc.x,n2->loc.y,n2->loc.z);
 
-      // for is_solid, determine which way the triangle is facing
+      // base density is a scaled area measure
+      double factor = (1.e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
       if (is_solid) { 
-         const double proj_area = area*dot(trinorm,vz);
-         factor = (1.e+5)*proj_area/(double)(subdivisions*subdivisions)/(dd*dd);
-         // if (dot(trinorm,vz) > 0.) factor = factor*-1.0;
+         // flip if triangle points away from viewer
+         // OMG, this is wrong!!!!! It should be sgn(dot())
+         // Wait, we're using the absolute area of the tri, so it's OK.
+         factor *= dot(trinorm,vz);
       }
 
       if (debug_write) {
@@ -403,10 +413,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
 
       // put the value on the grid by subdivision
-      for (int k=0; k<num_layers; k++) {
+      for (int k=0; k<num_norm_layers; k++) {
 
       // displacement of given layer in normal dir.
-      const double norm_disp = (double)(2*k+1)/(double)(num_layers) - 1.0;
+      const double norm_disp = (double)(2*k+1)/(double)(num_norm_layers) - 1.0;
 
       for (int i=0; i<subdivisions; i++) {
 
@@ -433,12 +443,15 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             ec.y += trinorm.y*norm_disp;
             ec.z += trinorm.z*norm_disp;
 
-            // find location in image coordinates
+            // find location in image coordinates (vx, vy, vz are normalized)
             double xpos = dot(vx,ec) - xmin;
             double ypos = dot(vy,ec) - ymin;
-            const double zpos = dot(vz,ec) - zmin;
+            double zpos = dot(vz,ec) - zmin;
 
 #ifdef USE_GAUSSIAN
+            fprintf(stderr,"GAUSSIAN kernel unsupports with multiple layers\n");
+            exit(1);
+
             // circle of confusion radius in image units (sigma)
             const double rad = fabs(zpos-0.45) + dd;
             const double cnst = 1./pow(rad,2);
@@ -463,7 +476,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
                      const double dy = ypos - iy*dd;
                      const double dr = drr + pow(dy,2);
                      //fprintf(stderr,"  %d %d  %g %g  %g\n",ix,iy,dx,dy,dr);
-                     a[ix][iy] += factor*cnst*exp(-0.5*dr*cnst);
+                     a[0][ix][iy] += factor*cnst*exp(-0.5*dr*cnst);
                   }
                }
                      //exit(0);
@@ -483,45 +496,112 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             // if (xpos < 0 || ypos < 0)
                // fprintf(stderr,"   subcell coords %g %g, weight %g\n",xpos,ypos,factor);
 
-            // finally, set the density of this point
-            double rfactor;
-            if (is_solid) {
-               //if (zpos < 0. && is_solid) fprintf(stderr,"\nERROR, zpos %g",zpos);
-               rfactor = factor*zpos;
-            } else if (FALSE) {
-               if (fabs(10.*zpos-floor(10.*zpos)-0.1) < 0.05) {
-                 rfactor = factor*(1.+cos(M_PI*20.*(10.*zpos-floor(10.*zpos)-0.5)));
-               } else {
-                 rfactor = 0.;
-               }
-            } else {
-               rfactor = factor;
-            }
-
             // write a little blob at each point, use area weighting
-            if (xloc > -1 && xloc < xres) {
-               if (yloc > -1 && yloc < yres)
-                  a[xloc][yloc]     += rfactor*(1.0-xpos)*(1.0-ypos);
-               if (yloc > -2 && yloc+1 < yres)
-                  a[xloc][yloc+1]   += rfactor*(1.0-xpos)*(ypos);
-            }
-            if (xloc > -2 && xloc+1 < xres) {
-               if (yloc > -1 && yloc < yres)
-                  a[xloc+1][yloc]   += rfactor*(xpos)    *(1.0-ypos);
-               if (yloc > -2 && yloc+1 < yres)
-                  a[xloc+1][yloc+1] += rfactor*(xpos)    *(ypos);
-            }
+            if (num_images == 1) {
+
+               // finally, set the density of this point
+               double rfactor = factor;
+               if (is_solid) {
+                  // zpos is always positive---it's the raw distance from the zmin plane
+                  rfactor *= zpos;
+               }
+
+               if (xloc > -1 && xloc < xres) {
+                  double rtemp = rfactor*(1.0-xpos);
+                  if (yloc > -1 && yloc < yres)
+                     a[0][xloc][yloc]     += rtemp*(1.0-ypos);
+                  if (yloc > -2 && yloc+1 < yres)
+                     a[0][xloc][yloc+1]   += rtemp*(ypos);
+               }
+               if (xloc > -2 && xloc+1 < xres) {
+                  double rtemp = rfactor*(xpos);
+                  if (yloc > -1 && yloc < yres)
+                     a[0][xloc+1][yloc]   += rtemp*(1.0-ypos);
+                  if (yloc > -2 && yloc+1 < yres)
+                     a[0][xloc+1][yloc+1] += rtemp*(ypos);
+               }
+
+            } else {
+               // multiple layers: we need to be careful with solid images
+
+               // finally, set the density of this point
+               double rfactor = factor;
+
+               // (re)set the z position (indicates which layers/images to which to write)
+               const int zloc = (int)(floor(zpos/ddz));
+               zpos = zpos/ddz - zloc;
+               double rtemp = 0.0;
+               double stemp = 0.0;
+
+               if (is_solid) {
+
+                  // NOT DONE!!!
+                  // must loop over lots of layers
+                  // need to calculate multipliers based on TSC interpolation!!!
+                  // choice is between sharp layers (no interp) and soft layers (TSC)
+                  double zsq = zpos*zpos;
+                  double zinv = 2.0-pow(1.0-zpos,2);
+
+                  if (xloc > -1 && xloc < xres) {
+                     rtemp = rfactor*(1.0-xpos);
+                     if (yloc > -1 && yloc < yres)
+                        stemp = rtemp*(1.0-ypos);
+                        a[zloc+1][xloc][yloc]     += stemp*zsq;
+                        a[zloc][xloc][yloc]       += stemp*zinv;
+                        for (int inum=zloc-1; inum>-1; inum--)
+                           a[inum][xloc][yloc]    += stemp*2.0;
+                     if (yloc > -2 && yloc+1 < yres)
+                        stemp = rtemp*(ypos);
+                        a[zloc+1][xloc][yloc+1]   += stemp*zsq;
+                        a[zloc][xloc][yloc+1]     += stemp*zinv;
+                        for (int inum=zloc-1; inum>-1; inum--)
+                           a[inum][xloc][yloc+1]  += stemp*2.0;
+                  }
+                  if (xloc > -2 && xloc+1 < xres) {
+                     rtemp = rfactor*(xpos);
+                     if (yloc > -1 && yloc < yres)
+                        stemp = rtemp*(1.0-ypos);
+                        a[zloc+1][xloc+1][yloc]   += stemp*zsq;
+                        a[zloc][xloc+1][yloc]     += stemp*zinv;
+                        for (int inum=zloc-1; inum>-1; inum--)
+                           a[inum][xloc+1][yloc]  += stemp*2.0;
+                     if (yloc > -2 && yloc+1 < yres)
+                        stemp = rtemp*(ypos);
+                        a[zloc+1][xloc+1][yloc+1] += stemp*zsq;
+                        a[zloc][xloc+1][yloc+1]   += stemp*zinv;
+                        for (int inum=zloc-1; inum>-1; inum--)
+                           a[inum][xloc+1][yloc+1]+= stemp*2.0;
+                  }
+
+               } else {
+
+                  if (xloc > -1 && xloc < xres) {
+                     rtemp = rfactor*(1.0-xpos);
+                     if (yloc > -1 && yloc < yres)
+                        stemp = rtemp*(1.0-ypos);
+                        a[zloc][xloc][yloc]       += stemp*(1.0-zpos);
+                        a[zloc+1][xloc][yloc]     += stemp*(zpos);
+                     if (yloc > -2 && yloc+1 < yres)
+                        stemp = rtemp*(ypos);
+                        a[zloc][xloc][yloc+1]     += stemp*(1.0-zpos);
+                        a[zloc+1][xloc][yloc+1]   += stemp*(zpos);
+                  }
+                  if (xloc > -2 && xloc+1 < xres) {
+                     rtemp = rfactor*(xpos);
+                     if (yloc > -1 && yloc < yres)
+                        stemp = rtemp*(1.0-ypos);
+                        a[zloc][xloc+1][yloc]     += stemp*(1.0-zpos);
+                        a[zloc+1][xloc+1][yloc]   += stemp*(zpos);
+                     if (yloc > -2 && yloc+1 < yres)
+                        stemp = rtemp*(ypos);
+                        a[zloc][xloc+1][yloc+1]   += stemp*(1.0-zpos);
+                        a[zloc+1][xloc+1][yloc+1] += stemp*(zpos);
+                  }
+
+               } // if not solid
+            } // if multiple images
 
 #endif  // not Gaussian
-            /*
-            if (xloc > -2 && xloc+1 < xres && yloc > -2 && yloc+1 < yres) {
-            if (isnan(a[xloc+1][yloc+1])) {
-               fprintf(stderr,"\na[%d][%d] was %lf, factor is %lf, pos is %g %g\n",xloc+1,yloc+1,a[xloc+1][yloc+1],factor,xpos,ypos);
-               fprintf(stderr,"  ec is %g %g %g, normdisp is %g\n",ec.x,ec.y,ec.z,norm_disp);
-               fprintf(stderr,"  trinorm is %g %g %g, area is %g\n",trinorm.x,trinorm.y,trinorm.z,area);
-            }
-            }
-            */
          }
       }
       }
@@ -551,17 +631,19 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    float maxval = 0.;
    if (write_pgm) {
 
-      fprintf(stderr,"Writing PGM image"); fflush(stderr);
+      if (num_images == 1) 
+         fprintf(stderr,"Writing PGM image");
+      else
+         fprintf(stderr,"Writing %d PGM images", num_images);
+      fflush(stderr);
+
       // gamma-correct and check for peak value
-      for (int j=yres-1; j>-1; j--) {
-         for (int i=0; i<xres; i++) {
-            // int printval = (int)(a[i][j]);
-            // if (isnan(a[i][j])) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
-            // if (a[i][j]<0) fprintf(stderr,"\na[%d][%d] was %lf\n",i,j,a[i][j]);
-            // this is gamma correction, leave it in, it helps lower-res images
-            // um, it doesn't actually do anything? Okay.
-            a[i][j] = exp(gamma*log(a[i][j]));
-            if (a[i][j] > maxval) maxval = a[i][j];
+      for (int inum=0; inum<num_images; inum++) {
+         for (int j=yres-1; j>-1; j--) {
+            for (int i=0; i<xres; i++) {
+               a[inum][i][j] = exp(gamma*log(a[inum][i][j]));
+               if (a[inum][i][j] > maxval) maxval = a[inum][i][j];
+            }
          }
       }
       fprintf(stderr,", maxval is %g\n",maxval); fflush(stderr);
@@ -574,50 +656,62 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
       fprintf(stderr,"\n"); fflush(stderr);
 
-      // scale all values
-      if (write_hibit) {
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               a[i][j] *= 65536.0/maxval;
+      // scale values and write files
+      for (int inum=0; inum<num_images; inum++) {
+
+         FILE* ofp;
+         if (num_images == 1) {
+            ofp = stdout;
+         } else {
+            char file_name[255];
+            sprintf(file_name, "%s_%02d.png", prefix, inum);
+            ofp = fopen(file_name, "wb");
+         }
+
+         if (write_hibit) {
+            // write header
+            fprintf(ofp,"P2\n%d %d\n%d\n",xres,yres,65535);
+            // write data
+            for (int j=yres-1; j>-1; j--) {
+               for (int i=0; i<xres; i++) {
+                  int printval = (int)(a[inum][i][j]*65536.0/maxval);
+                  if (printval > 65535) printval = 65535;
+                  fprintf(ofp,"%d\n",printval);
+               }
+            }
+         } else {
+            // write header
+            fprintf(ofp,"P2\n%d %d\n%d\n",xres,yres,255);
+            // write data
+            for (int j=yres-1; j>-1; j--) {
+               for (int i=0; i<xres; i++) {
+                  int printval = (int)(a[inum][i][j]*256.0/maxval);
+                  if (printval > 255) printval = 255;
+                  fprintf(ofp,"%d\n",printval);
+               }
             }
          }
-         // write header
-         fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,65535);
-         // write data
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               int printval = (int)(a[i][j]);
-               if (printval > 65535) printval = 65535;
-               fprintf(stdout,"%d\n",printval);
-            }
-         }
-      } else {
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               a[i][j] *= 256.0/maxval;
-            }
-         }
-         // write header
-         fprintf(stdout,"P2\n%d %d\n%d\n",xres,yres,255);
-         // write data
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               int printval = (int)(a[i][j]);
-               if (printval > 255) printval = 255;
-               fprintf(stdout,"%d\n",printval);
-            }
+
+         if (num_images != 1) {
+            fclose(ofp);
          }
       }
 
    } else if (write_png) {
 
-      fprintf(stderr,"Writing PNG image"); fflush(stderr);
+      if (num_images == 1) 
+         fprintf(stderr,"Writing PNG image");
+      else
+         fprintf(stderr,"Writing %d PNG images", num_images);
+      fflush(stderr);
 
       // gamma-correct and check for peak value
-      for (int i=0; i<xres; i++) {
-         for (int j=0; j<yres; j++) {
-            a[i][j] = exp(gamma*log(a[i][j]));
-            if (a[i][j] > maxval) maxval = a[i][j];
+      for (int inum=0; inum<num_images; inum++) {
+         for (int i=0; i<xres; i++) {
+            for (int j=0; j<yres; j++) {
+               a[inum][i][j] = exp(gamma*log(a[inum][i][j]));
+               if (a[inum][i][j] > maxval) maxval = a[inum][i][j];
+            }
          }
       }
 
@@ -630,26 +724,32 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       // scale all values
       if (write_hibit) {
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               int printval = (int)(a[i][j]*65536.0/maxval);
-               if (printval<0) printval = 0;
-               if (printval>65535) printval = 65535;
-               img[yres-1-j][2*i] = (png_byte)(printval/256);
-               img[yres-1-j][2*i+1] = (png_byte)(printval%256);
+         img = allocate_2d_array_pb(xres,yres,16);
+         for (int inum=0; inum<num_images; inum++) {
+            for (int j=yres-1; j>-1; j--) {
+               for (int i=0; i<xres; i++) {
+                  int printval = (int)(a[inum][i][j]*65536.0/maxval);
+                  if (printval<0) printval = 0;
+                  if (printval>65535) printval = 65535;
+                  img[yres-1-j][2*i] = (png_byte)(printval/256);
+                  img[yres-1-j][2*i+1] = (png_byte)(printval%256);
+               }
             }
+            write_png_image(img,yres,xres,16,prefix,inum,num_images);
          }
-         write_png_image(img,yres,xres,16);
       } else {
-         for (int j=yres-1; j>-1; j--) {
-            for (int i=0; i<xres; i++) {
-               int printval = (int)(a[i][j]*256.0/maxval);
-               if (printval<0) printval = 0;
-               if (printval>255) printval = 255;
-               img[yres-1-j][i] = (png_byte)printval;
+         img = allocate_2d_array_pb(xres,yres,8);
+         for (int inum=0; inum<num_images; inum++) {
+            for (int j=yres-1; j>-1; j--) {
+               for (int i=0; i<xres; i++) {
+                  int printval = (int)(a[inum][i][j]*256.0/maxval);
+                  if (printval<0) printval = 0;
+                  if (printval>255) printval = 255;
+                  img[yres-1-j][i] = (png_byte)printval;
+               }
             }
+            write_png_image(img,yres,xres,8,prefix,inum,num_images);
          }
-         write_png_image(img,yres,xres,8);
       }
 
    }
@@ -683,7 +783,7 @@ png_byte** allocate_2d_array_pb(int nx, int ny, int depth) {
  * write a png file
  */
 // int write_png_image(char *file_name,png_byte** image,int xres,int yres,int depth) {
-int write_png_image(png_byte** image,int xres,int yres,int depth) {
+int write_png_image(png_byte** image,int xres,int yres,int depth,char *prefix,int img_num,int num_images) {
 
    png_uint_32 height,width;
    FILE *fp;
@@ -691,16 +791,21 @@ int write_png_image(png_byte** image,int xres,int yres,int depth) {
    png_infop info_ptr;
    //png_colorp palette;
    //png_voidp user_error_ptr;
-   // char *file_name = "out.png";
+   char file_name[255];
+
+   // if we were given a prefix, write to a file instead of stdout
+   if (num_images == 1) {
+      fp = stdout;
+   } else {
+      sprintf(file_name, "%s_%02d.png", prefix, img_num);
+      fp = fopen(file_name, "wb");
+   }
+
+   if (fp == NULL)
+      return (-1);
 
    height=yres;
    width=xres;
-
-   /* open the file */
-   // fp = fopen(file_name, "wb");
-   fp = stdout;
-   if (fp == NULL)
-      return (-1);
 
    /* Create and initialize the png_struct with the desired error handler
     * functions.  If you want to use the default stderr and longjump method,
@@ -770,8 +875,8 @@ int write_png_image(png_byte** image,int xres,int yres,int depth) {
    /* clean up after the write, and free any memory allocated */
    png_destroy_write_struct(&png_ptr, &info_ptr);
 
-   /* close the file */
-   // fclose(fp);
+   /* close the file, if it was a file */
+   if (num_images != 1) fclose(fp);
 
    /* that's it */
    return (0);
