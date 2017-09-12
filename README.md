@@ -23,20 +23,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 ## Table of Contents
 
-1.0 Introduction
-2.0 Getting Started
-3.0 File Summary
-4.0 Rocktools Usage
-    4.1 rockcreate
-    4.2 rockdetail
-    4.3 rocksmooth
-    4.4 rocktrim
-    4.5 rockerode
-    4.6 rockxray
-5.0 File Formats
-6.0 Version History
-7.0 Credits
-8.0 Appendixes
+1. Introduction
+2. Getting Started
+3. File Summary
+4. Rocktools Usage
+    1. rockcreate
+    2. rockdetail
+    3. rocksmooth
+    4. rocktrim
+    5. rockerode
+    6. rockxray
+5. File Formats
+6. Version History
+7. Credits
+8. Appendixes
 
 
 -----------------------------------------------------------------------
@@ -190,132 +190,97 @@ Rocktools can read three and write six different file formats. They are
 described below. Keep in mind that in the actual files, the "x1 y1 z1"
 notations would be replaced with actual floating-point numbers.
 
-Raw Triangle Format (.raw) - the most basic triangle mesh file
-   format possible, it consists of nine numbers, corresponding
-   to three nodes of a triangle in three dimensions, per line.
-   Comments are supported with a '#' as the first non-whitespace
-   character on a line.
+* Raw Triangle Format (.raw) - the most basic triangle mesh file
+    format possible, it consists of nine numbers, corresponding
+    to three nodes of a triangle in three dimensions, per line.
+    Comments are supported with a '#' as the first non-whitespace
+    character on a line.
 
-   The .tin and .raw formats are currently the only supported formats
-   for input into rockdetail/rocktools.
+    The .tin and .raw formats are currently the only supported formats
+    for input into rockdetail/rocktools.
 
-   x1 y1 z1 x2 y2 z2 x3 y3 z3
+        x1 y1 z1 x2 y2 z2 x3 y3 z3
 
-Triangle Irregular Mesh (.tin) - a file format used by scape-1.2, a
-   surface simplification tool written by Michael Garland, found at:
-   http://www.cs.cmu.edu/afs/cs/user/garland/www/scape/index.html
+* Triangle Irregular Mesh (.tin) - a file format used by scape-1.2, a
+    surface simplification tool written by Michael Garland, found at:
+    http://www.cs.cmu.edu/afs/cs/user/garland/www/scape/index.html
 
-   The .tin and .raw formats are currently the only supported formats
-   for input into rockdetail/rocktools.
+    The .tin and .raw formats are currently the only supported formats
+    for input into rockdetail/rocktools.
 
-   Each triangle is entered on its own line, in the format
-   t x1 y1 z1 x2 y2 z2 x3 y3 z3
+    Each triangle is entered on its own line, in the format
 
-Wavefront (.obj) - a standard 3D file format used by Alias Wavefront,
-   it is a free-form file which lists coordinates of all vertexes and
-   each face references the vertex numbers. An example follows:
+        t x1 y1 z1 x2 y2 z2 x3 y3 z3
 
-   v x1 y1 z1
-   v x2 y2 z2
-   v x3 y3 z3
-   f 1 2 3
+* Wavefront (.obj) - a standard 3D file format used by Alias Wavefront,
+    it is a free-form file which lists coordinates of all vertexes and
+    each face references the vertex numbers. An example follows:
 
-   This is the reccommended file format, as the reading routines are
-   optimized for very large files (1/2 million tris+).
+        v x1 y1 z1
+        v x2 y2 z2
+        v x3 y3 z3
+        f 1 2 3
 
-Persistence of Vision Raytracer (.pov) - a file format used by the 
-   popular raytracer, POV, the file format is very similar to .tin:
+    This is the recommended file format, as the reading routines are
+    optimized for very large files (1/2 million tris+).
 
-   mesh {
-   triangle {<x1 y1 z1> <x2 y2 z2> <x3 y3 z3>}
-   }
+* Persistence of Vision Raytracer (.pov) - a file format used by the 
+    popular raytracer, POV, the file format is very similar to .tin:
 
-Radiance (.rad) - a scene file format used by Radiance, a very accurate
-   lighting simulation software package. Also similar to .tin. Note that
-   the inherited surface attribute is called "default."
-   http://radsite.lbl.gov/radiance/HOME.html
+        mesh {
+        triangle {<x1 y1 z1> <x2 y2 z2> <x3 y3 z3>}
+        }
 
-   default polygon p0
-   0
-   0
-   9 x1 y1 z1 x2 y2 z2 x3 y3 z3
+* Radiance (.rad) - a scene file format used by Radiance, a very accurate
+    lighting simulation software package. Also similar to .tin. Note that
+    the inherited surface attribute is called "default."
+    http://radsite.lbl.gov/radiance/HOME.html
 
-Renderman (.rib) - A Renderman-compliant polygon definition, used by
-   the Blue Moon RayTracer (BMRT) and Pixar/Gritz's Renderman. It
-   has one triangle per line and goes a little like this:
+        default polygon p0
+        0
+        0
+        9 x1 y1 z1 x2 y2 z2 x3 y3 z3
 
-   Polygon "P" [ x1 y1 z1 x2 y2 z2 x3 y3 z3 ]
+* Renderman (.rib) - A Renderman-compliant polygon definition, used by
+    the Blue Moon RayTracer (BMRT) and Pixar/Gritz's Renderman. It
+    has one triangle per line and goes a little like this:
+
+        Polygon "P" [ x1 y1 z1 x2 y2 z2 x3 y3 z3 ]
 
 
 -----------------------------------------------------------------------
 
 ## 6.0 Version History
 
-  1999-02-24  v0.0    Started project
-  1999-03-11  v0.1    rockdetail works, outputs POV, Rad, Wavefront, .tin
-  1999-03-20  v0.1.1  added RIB and RAW output, reworked input/output
-  1999-03-31  v0.1.2  added clamp_edges option to rockdetail
-  1999-04-20  v0.2a   rockcreate added
-  1999-05-03  v0.3a   rocksmooth added, reorganized directory
-  1999-05-28  v0.4a   rocktrim added, new recursion options in rockdetail
-  2000-12-02  v0.5a   rockerode added
-  2003-09-16  v0.6    obj input, new options to rockdetail
-  2004-01-26  v0.7    faster obj input, added rockxray, minor other fixes
-  2006-06-26  v0.8    added more features, added rockmarker
-  2007-11-23  v0.9    small fixes, reduced memory use, broke rockcreate
-  2009-04-22  v1.0    rewrote rockcreate with new features, added rockinfo,
-                      rocksplit, and rockdice
-  2011-08-01  v1.1    added rockpng, to convert 16-bit PNGs to meshes
-  2014-04-06  v1.2    added rockslice, new features to rockpng
-  2017-09-12  v1.3    many improvements to xray, moved to github
+    1999-02-24  v0.0    Started project
+    1999-03-11  v0.1    rockdetail works, outputs POV, Rad, Wavefront, .tin
+    1999-03-20  v0.1.1  added RIB and RAW output, reworked input/output
+    1999-03-31  v0.1.2  added clamp_edges option to rockdetail
+    1999-04-20  v0.2a   rockcreate added
+    1999-05-03  v0.3a   rocksmooth added, reorganized directory
+    1999-05-28  v0.4a   rocktrim added, new recursion options in rockdetail
+    2000-12-02  v0.5a   rockerode added
+    2003-09-16  v0.6    obj input, new options to rockdetail
+    2004-01-26  v0.7    faster obj input, added rockxray, minor other fixes
+    2006-06-26  v0.8    added more features, added rockmarker
+    2007-11-23  v0.9    small fixes, reduced memory use, broke rockcreate
+    2009-04-22  v1.0    rewrote rockcreate with new features, added rockinfo,
+                        rocksplit, and rockdice
+    2011-08-01  v1.1    added rockpng, to convert 16-bit PNGs to meshes
+    2014-04-06  v1.2    added rockslice, new features to rockpng
+    2017-09-12  v1.3    many improvements to xray, moved to github
 
 -----------------------------------------------------------------------
 
 ## 7.0 Credits
 
-Mark J. Stock - Main algorithm coding, project manager,
-documentation, online presence maintainer
-
 My thanks to all those who helped or showed interest in rocktools.
 Their enthusiasm kept me interested too, and cannot be thanked enough.
 The GNU Public License protects their work in rocktools, too.
 
-Jeff Balcerski - Testing, POV support, images/movies
-
-Anthony D'Agostino - DOS port, testing, code fixes
-
-Steven Pigeon - Initial concept, page design
-
-Ken Clarkson - "hull" program
-
-Jeff Norris - "Alpha" testing
-
------------------------------------------------------------------------
-
-## 8.0 Appendix A: Related Internet Sites
-
-Meshlab
-http://meshlab.sourceforge.net/
-
-Cinepaint
-http://cinepaint.sourceforge.net/
-
-Gimp
-http://www.gimp.org/
-
-Radiance Lighting Simulation
-http://radsite.lbl.gov/radiance/HOME.html
-
-Persistence of Vision Raytracer
-http://www.pov.org/
-
-Mark Stock's Homepage
-http://mark.technolope.org/
-
-Jeff Balcerski's Homepage
-http://dreamstorm.net/
-
-Ken Clarkson's Homepage
-http://cm.bell-labs.com/who/clarkson/
-
+* Jeff Balcerski - Testing, POV support, images/movies
+* Anthony D'Agostino - DOS port, testing, code fixes
+* Steven Pigeon - Initial concept, page design
+* Ken Clarkson - "hull" program
+* Jeff Norris - "Alpha" testing
 
