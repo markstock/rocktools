@@ -1,5 +1,8 @@
-rocktools - Tools for creating and manipulating triangular meshes
-Copyright (C) 1999-2014  Mark J. Stock
+# rocktools
+
+Tools for creating and manipulating triangular meshes
+
+Copyright (C) 1999-2017  Mark J. Stock
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -18,18 +21,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 -----------------------------------------------------------------------
 
-Table of Contents
+## Table of Contents
 
 1.0 Introduction
 2.0 Getting Started
 3.0 File Summary
 4.0 Rocktools Usage
-  4.1 rockcreate
-  4.2 rockdetail
-  4.3 rocksmooth
-  4.4 rocktrim
-  4.5 rockerode
-  4.6 rockxray
+    4.1 rockcreate
+    4.2 rockdetail
+    4.3 rocksmooth
+    4.4 rocktrim
+    4.5 rockerode
+    4.6 rockxray
 5.0 File Formats
 6.0 Version History
 7.0 Credits
@@ -38,7 +41,7 @@ Table of Contents
 
 -----------------------------------------------------------------------
 
-1.0 Introduction
+## 1.0 Introduction
 
 Rocktools is a package of related programs useful for defining natural
 and fractal-like shapes such as those of rocks and rough terrain with
@@ -51,18 +54,17 @@ neccessarily limited to, creation of realistic-looking rock shapes and,
 possibly, landscapes.
 
 If you find rocktools useful, or use it in a competition, the author
-would appreciate hearing from you. Please e-mail Mark Stock at
-mstock@umich.edu
+would appreciate hearing from you.
 
 -----------------------------------------------------------------------
 
-2.0 Getting Started
+## 2.0 Getting Started
 
 To get rocktools up and running, you only need to build the software
 and place the executables in an appropriate place. This may be as
 easy as running:
 
-	% make
+    make
 
 in the directory with this file.
 
@@ -72,11 +74,11 @@ to build the package. On a Unix system, look through the file called
 simply type "make" at the command-line in the src/ directory and the
 tools will be built.
 
-To install the files in /usr/local/bin (where they will be visible to
-a normal user), edit the Makefile to expose the "BIN" variable and then
+To install the files in `/usr/local/bin` (where they will be visible to
+a normal user), edit the `Makefile` to expose the "BIN" variable and then
 
-	% make
-	% make install
+    make
+    make install
 
 To learn about the command-line options available and the usage of
 any program, just run the program with no command-line options or
@@ -85,82 +87,81 @@ with "-help".
 
 -----------------------------------------------------------------------
 
-3.0 File Summary
+## 3.0 File Summary
 
 Rocktools, at the moment, is composed of five programs, summarized below:
 
-   rockconvert - Convert between the (few) file formats that Rocktools
-      supports.
+* rockconvert - Convert between the (few) file formats that Rocktools
+    supports.
 
-   rockcreate - Create an initial rock shape by wrapping a convex
-      hull around randomly created points.
+* rockcreate - Create an initial rock shape by wrapping a convex
+    hull around randomly created points.
 
-   rockdetail - Recursively detail a rock surface composed
-      of an irregular triangle mesh.
+* rockdetail - Recursively detail a rock surface composed
+    of an irregular triangle mesh.
 
-   rockdice - Recursively split a large tri mesh into smaller chunks
-      with smooth edges
+* rockdice - Recursively split a large tri mesh into smaller chunks
+    with smooth edges
 
-   rockerode - Perform a simple erosion routine over the tri mesh.
+* rockerode - Perform a simple erosion routine over the tri mesh.
 
-   rockinfo - dump the node and tri counts, plus min/max of the nodes.
+* rockinfo - dump the node and tri counts, plus min/max of the nodes.
 
-   rockmarker - Place simple objects onto a trimesh.
+* rockmarker - Place simple objects onto a trimesh.
 
-   rocksmooth - Smooth a triangle mesh using a Laplace-like operator.
+* rocksmooth - Smooth a triangle mesh using a Laplace-like operator.
 
-   rocksplit - Split a tri mesh into two meshes along a x, y, or z plane
+* rocksplit - Split a tri mesh into two meshes along a x, y, or z plane
 
-   rocktrim - Split an arbitraty tri mesh along a coordinate plane.
+* rocktrim - Split an arbitraty tri mesh along a coordinate plane.
 
-   rockxray - Write a grayscale image of the shell of a tri mesh.
+* rockxray - Write a grayscale image of the shell of a tri mesh.
 
-   rockpng - generate a mesh from a heightfield image
+* rockpng - generate a mesh from a heightfield image
 
-   rockslide - cut an axis-aligned 2D slice from a trimesh
+* rockslide - cut an axis-aligned 2D slice from a trimesh
 
 Some other C files support the main programs listed above. These files
 and descriptions follow:
 
-   *util.c - Includes subroutines used in rock*
+* NAMEutil.c - Includes subroutines used in rockNAME
 
-   structs.h - A pseudo-header file describing the dominant data
-      structures used in the programs
+* structs.h - A pseudo-header file describing the dominant data
+    structures used in the programs
 
-   inout.c - All of the triangle mesh file input and output is handled
-      by routines in this file
+* inout.c - All of the triangle mesh file input and output is handled
+    by routines in this file
 
-   utils.c - Some vector math and triangle mesh algorithms are kept
-      in this file
+* utils.c - Some vector math and triangle mesh algorithms are kept
+    in this file
 
 In addition, there are several files included in the distribution,
 these are summarized and described below:
 
-   README - this documentation file
+* README - this documentation file
 
-   Makefile - this is a standard Unix Makefile, running "make" on
-      a Unix system will use information in this file to build the
-      binary executables for Rocktools
+* Makefile - this is a standard Unix Makefile, running "make" on
+    a Unix system will use information in this file to build the
+    binary executables for Rocktools
 
 Also, there are some basic building-block meshes that serve as good
 initial input to rockdetail:
 
-   onetri.obj, square.obj - one and two triangles, respectively
+* onetri.obj, square.obj - one and two triangles, respectively
 
-   tetra.obj - a starter triangle mesh file describing a tetrahedron
+* tetra.obj - a starter triangle mesh file describing a tetrahedron
 
-   cube.obj - a starter triangle mesh file describing a cube in 12
-      triangles
+* cube.obj - a starter triangle mesh file describing a cube in 12 triangles
 
-   rook.obj - a Wavefront file of the chesspiece of the same name
+* rook.obj - a Wavefront file of the chesspiece of the same name
 
-   icosahedron.obj - a 20-sided solid, useful for recursively
-      refining a sphere using rockdetail's -sph option
+* icosahedron.obj - a 20-sided solid, useful for recursively
+    refining a sphere using rockdetail's -sph option
 
 
 -----------------------------------------------------------------------
 
-4.0 Program Usage
+## 4.0 Program Usage
 
 All programs accept these two arguments:
 
@@ -183,7 +184,7 @@ with the "-help" option.
 
 -----------------------------------------------------------------------
 
-5.0 File Formats
+## 5.0 File Formats
 
 Rocktools can read three and write six different file formats. They are
 described below. Keep in mind that in the actual files, the "x1 y1 z1"
@@ -248,7 +249,7 @@ Renderman (.rib) - A Renderman-compliant polygon definition, used by
 
 -----------------------------------------------------------------------
 
-6.0 Version History
+## 6.0 Version History
 
   1999-02-24  v0.0    Started project
   1999-03-11  v0.1    rockdetail works, outputs POV, Rad, Wavefront, .tin
@@ -266,31 +267,32 @@ Renderman (.rib) - A Renderman-compliant polygon definition, used by
                       rocksplit, and rockdice
   2011-08-01  v1.1    added rockpng, to convert 16-bit PNGs to meshes
   2014-04-06  v1.2    added rockslice, new features to rockpng
+  2017-09-12  v1.3    many improvements to xray, moved to github
 
 -----------------------------------------------------------------------
 
-7.0 Credits
+## 7.0 Credits
 
-Mark J. Stock, PhD <mstock@umich.edu> - Main algorithm coding, project manager,
+Mark J. Stock - Main algorithm coding, project manager,
 documentation, online presence maintainer
 
 My thanks to all those who helped or showed interest in rocktools.
 Their enthusiasm kept me interested too, and cannot be thanked enough.
 The GNU Public License protects their work in rocktools, too.
 
-Jeff Balcerski <jeffab@umich.edu> - Testing, POV support, images/movies
+Jeff Balcerski - Testing, POV support, images/movies
 
-Anthony D'Agostino <scorpius@csi.com> - DOS port, testing, code fixes
+Anthony D'Agostino - DOS port, testing, code fixes
 
-Steven Pigeon <pigeon@iro.umontreal.ca> - Initial concept, page design
+Steven Pigeon - Initial concept, page design
 
-Ken Clarkson <clarkson@research.bell-labs.com> - "hull" program
+Ken Clarkson - "hull" program
 
-Jeff Norris <jnorris@jpl.nasa.gov> - "Alpha" testing
+Jeff Norris - "Alpha" testing
 
 -----------------------------------------------------------------------
 
-8.0 Appendix A: Related Internet Sites
+## 8.0 Appendix A: Related Internet Sites
 
 Meshlab
 http://meshlab.sourceforge.net/
@@ -316,9 +318,4 @@ http://dreamstorm.net/
 Ken Clarkson's Homepage
 http://cm.bell-labs.com/who/clarkson/
 
-
------------------------------------------------------------------------
-
-created 1999-03-15 by Mark Stock <mstock@umich.edu>
-document last modified 2014-04-06 by Mark Stock <mstock@umich.edu>
 
