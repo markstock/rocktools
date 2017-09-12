@@ -70,8 +70,8 @@ in the directory with this file.
 
 If you downloaded the basic source code distribution, you will need
 to build the package. On a Unix system, look through the file called
-"Makefile" to see if all of the parameters are set properly. If so,
-simply type "make" at the command-line in the src/ directory and the
+`Makefile` to see if all of the parameters are set properly. If so,
+simply type `make` at the command-line in the src/ directory and the
 tools will be built.
 
 To install the files in `/usr/local/bin` (where they will be visible to
@@ -82,7 +82,7 @@ a normal user), edit the `Makefile` to expose the "BIN" variable and then
 
 To learn about the command-line options available and the usage of
 any program, just run the program with no command-line options or
-with "-help".
+with `-help`.
 
 
 -----------------------------------------------------------------------
@@ -91,48 +91,48 @@ with "-help".
 
 Rocktools, at the moment, is composed of five programs, summarized below:
 
-* rockconvert - Convert between the (few) file formats that Rocktools
+* **rockconvert** - Convert between the (few) file formats that Rocktools
     supports.
 
-* rockcreate - Create an initial rock shape by wrapping a convex
+* **rockcreate** - Create an initial rock shape by wrapping a convex
     hull around randomly created points.
 
-* rockdetail - Recursively detail a rock surface composed
+* **rockdetail** - Recursively detail a rock surface composed
     of an irregular triangle mesh.
 
-* rockdice - Recursively split a large tri mesh into smaller chunks
+* **rockdice** - Recursively split a large tri mesh into smaller chunks
     with smooth edges
 
-* rockerode - Perform a simple erosion routine over the tri mesh.
+* **rockerode** - Perform a simple erosion routine over the tri mesh.
 
-* rockinfo - dump the node and tri counts, plus min/max of the nodes.
+* **rockinfo** - dump the node and tri counts, plus min/max of the nodes.
 
-* rockmarker - Place simple objects onto a trimesh.
+* **rockmarker** - Place simple objects onto a trimesh.
 
-* rocksmooth - Smooth a triangle mesh using a Laplace-like operator.
+* **rocksmooth** - Smooth a triangle mesh using a Laplace-like operator.
 
-* rocksplit - Split a tri mesh into two meshes along a x, y, or z plane
+* **rocksplit** - Split a tri mesh into two meshes along a x, y, or z plane
 
-* rocktrim - Split an arbitraty tri mesh along a coordinate plane.
+* **rocktrim** - Split an arbitraty tri mesh along a coordinate plane.
 
-* rockxray - Write a grayscale image of the shell of a tri mesh.
+* **rockxray** - Write a grayscale image of the shell of a tri mesh.
 
-* rockpng - generate a mesh from a heightfield image
+* **rockpng** - generate a mesh from a heightfield image
 
-* rockslide - cut an axis-aligned 2D slice from a trimesh
+* **rockslide** - cut an axis-aligned 2D slice from a trimesh
 
 Some other C files support the main programs listed above. These files
 and descriptions follow:
 
-* NAMEutil.c - Includes subroutines used in rockNAME
+* `NAMEutil.c` - Includes subroutines used in rockNAME
 
-* structs.h - A pseudo-header file describing the dominant data
+* `structs.h` - A pseudo-header file describing the dominant data
     structures used in the programs
 
-* **inout.c** - All of the triangle mesh file input and output is handled
+* `inout.c` - All of the triangle mesh file input and output is handled
     by routines in this file
 
-* #utils.c# - Some vector math and triangle mesh algorithms are kept
+* `utils.c` - Some vector math and triangle mesh algorithms are kept
     in this file
 
 In addition, there are several files included in the distribution,
@@ -147,15 +147,15 @@ these are summarized and described below:
 Also, there are some basic building-block meshes that serve as good
 initial input to rockdetail:
 
-* onetri.obj, square.obj - one and two triangles, respectively
+* `onetri.obj`, `square.obj` - one and two triangles, respectively
 
-* tetra.obj - a starter triangle mesh file describing a tetrahedron
+* `tetra.obj` - a starter triangle mesh file describing a tetrahedron
 
-* cube.obj - a starter triangle mesh file describing a cube in 12 triangles
+* `cube.obj` - a starter triangle mesh file describing a cube in 12 triangles
 
-* rook.obj - a Wavefront file of the chesspiece of the same name
+* `rook.obj` - a Wavefront file of the chesspiece of the same name
 
-* icosahedron.obj - a 20-sided solid, useful for recursively
+* `icosahedron.obj` - a 20-sided solid, useful for recursively
     refining a sphere using rockdetail's `-sph` option
 
 
