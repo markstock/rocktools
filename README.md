@@ -119,7 +119,11 @@ Rocktools, at the moment, is composed of five programs, summarized below:
 
 * **rockpng** - generate a mesh from a heightfield image
 
-* **rockslide** - cut an axis-aligned 2D slice from a trimesh
+* **rockslice** - cut an axis-aligned 2D slice from a trimesh
+
+* **rockbalance** - find the most stable orientation of a closed trimesh
+
+* **rockbob** - create a brick-of-bytes voxel file from a trimesh
 
 Some other C files support the main programs listed above. These files
 and descriptions follow:
