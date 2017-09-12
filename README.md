@@ -129,18 +129,18 @@ and descriptions follow:
 * structs.h - A pseudo-header file describing the dominant data
     structures used in the programs
 
-* inout.c - All of the triangle mesh file input and output is handled
+* **inout.c** - All of the triangle mesh file input and output is handled
     by routines in this file
 
-* utils.c - Some vector math and triangle mesh algorithms are kept
+* #utils.c# - Some vector math and triangle mesh algorithms are kept
     in this file
 
 In addition, there are several files included in the distribution,
 these are summarized and described below:
 
-* README - this documentation file
+* `README.md` - this documentation file
 
-* Makefile - this is a standard Unix Makefile, running "make" on
+* `Makefile` - this is a standard Unix Makefile, running "make" on
     a Unix system will use information in this file to build the
     binary executables for Rocktools
 
@@ -156,7 +156,7 @@ initial input to rockdetail:
 * rook.obj - a Wavefront file of the chesspiece of the same name
 
 * icosahedron.obj - a 20-sided solid, useful for recursively
-    refining a sphere using rockdetail's -sph option
+    refining a sphere using rockdetail's `-sph` option
 
 
 -----------------------------------------------------------------------
@@ -165,10 +165,11 @@ initial input to rockdetail:
 
 All programs accept these two arguments:
 
-   -okey       specify output format, key= raw, rad, pov, obj, tin, rib    
-               default = raw; surface normal vectors are not supported     
+    -okey       specify output format, key= raw, rad, pov, obj, tin, rib    
+                default = raw; surface normal vectors are not supported     
                                                                            
-   -help       (anywhere in the command) returns this help information     
+    -h
+    -help       (anywhere in the command) returns this help information     
  
 Also, all options may be abbreviated to their unambiguous length,
 and all triangle mesh output is to stdout. stderr contains status
@@ -179,7 +180,7 @@ following formats: .obj, .raw, or .tin. The programs require the input
 file to use its valid 3-character filename extension.
 
 To see the usage for each program, run the executable with no options, or
-with the "-help" option.
+with the `-help` option.
 
 
 -----------------------------------------------------------------------
@@ -187,7 +188,7 @@ with the "-help" option.
 ## 5.0 File Formats
 
 Rocktools can read three and write six different file formats. They are
-described below. Keep in mind that in the actual files, the "x1 y1 z1"
+described below. Keep in mind that in the actual files, the `x1 y1 z1`
 notations would be replaced with actual floating-point numbers.
 
 * Raw Triangle Format (.raw) - the most basic triangle mesh file
