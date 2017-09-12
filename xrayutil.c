@@ -55,9 +55,9 @@ int write_png_image(png_byte**,int,int,int,char*,int,int);
  * "square" forces a square image, and centers the object (TRUE|FALSE)
  * "thisq" sets quality (0=low, 1=med, 2=high, 3=very high)
  */
-int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
+int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb, int size,
       double thick, int square, double border, int thisq, double peak_crop, double gamma,
-      int write_hibit, int is_solid, int num_images, char* prefix, char* output_format,
+      int write_hibit, int is_solid, int is_fade, int num_images, char* prefix, char* output_format,
       int force_num_threads) {
 
    int write_pgm;			// write a PGM file
@@ -66,7 +66,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    int xres,yres;			// the actual image size
    float ***a;				// the array to print
    png_byte **img = NULL;		// the png array
-   double dtemp,xsize,ysize,zsize,dd,ddz;
+   double xsize,ysize,zsize,dd;
+   double ddz = 1.0;
    double xmin,xmax,ymin,ymax;		// bounds of the image
    double zmin,zmax;			// bounds in the image direction
    VEC vx,vy;				// image basis vectors
@@ -124,7 +125,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    while (this_node) {
       // fprintf(stderr,"this node at %g %g %g, projection is %g %g\n",this_node->loc.x,this_node->loc.y,this_node->loc.z,dot(vx,this_node->loc),dot(vy,this_node->loc));
       // project this node to image plane
-      dtemp = dot(vx,this_node->loc);
+      double dtemp = dot(vx,this_node->loc);
       if (dtemp<xmin) xmin = dtemp;
       if (dtemp>xmax) xmax = dtemp;
 
@@ -154,6 +155,11 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       ymax = yb[2];
    }
    fprintf(stderr,"min/max image bounds are %g/%g and %g/%g\n",xmin,xmax,ymin,ymax);
+   if (zb[0] > 0.0) {
+      zmin = zb[1];
+      zmax = zb[2];
+   }
+   if (num_images > 1 || zb[0] > 0.0) fprintf(stderr,"min/max depth bounds are %g/%g\n",zmin,zmax);
 
 
    // determine image bounds, etc
@@ -168,10 +174,14 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          yres = xres;
          ymin = 0.5*(ymax+ymin) - 0.5*xsize;
          xmin = 0.5*(xmax+xmin) - 0.5*xsize;
+         ymax = ymin + xsize;
+         xmax = xmin + xsize;
       } else {
          yres = (int)(xres*(ymax-ymin + border*(xmax-xmin)) / xsize);
          ymin -= 0.5*border*(xmax-xmin);
          xmin -= 0.5*border*(xmax-xmin);
+         ymax = ymin + ysize;
+         xmax = xmin + xsize;
       }
       dd = xsize/xres;
    } else {
@@ -180,14 +190,19 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          xres = yres;
          xmin = 0.5*(xmax+xmin) - 0.5*ysize;
          ymin = 0.5*(ymax+ymin) - 0.5*ysize;
+         xmax = xmin + ysize;
+         ymax = ymin + ysize;
       } else {
          xres = (int)(yres*(xmax-xmin + border*(ymax-ymin)) / ysize);
          xmin -= 0.5*border*(ymax-ymin);
          ymin -= 0.5*border*(ymax-ymin);
+         ymax = ymin + ysize;
+         xmax = xmin + xsize;
       }
       dd = ysize/yres;
    }
-   fprintf(stderr,"Final image to be %d x %d\n",xres,yres);
+   fprintf(stderr,"Final image to be %d x %d pixels\n",xres,yres);
+   fprintf(stderr,"  and image geometry bounds %g/%g and %g/%g\n",xmin,xmax,ymin,ymax);
    //fprintf(stderr,"  new xmin,ymin %g %g, dd %g\n",xmin,ymin,dd);
 
 
@@ -195,10 +210,13 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    zsize = zmax-zmin;
    zmin -= 0.01*zsize;
    zmax += 0.01*zsize;
+   zsize = zmax-zmin;
 
    // set ddz, a measure of how thick each z-layer is (each output image)
    //   (add 1e-5 so that num_images of 1 doesn't futz things up)
-   ddz = (zmax-zmin)/(num_images - 1.0 + 1e-5);
+   //   this is only used later on for multiple layer calculations
+   if (num_images > 1)
+      ddz = (zmax-zmin)/(num_images - 1.0);
 
 
    // find out how many mesh layers we need (thick==-1 if not entered)
@@ -259,8 +277,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
    int lock_max[num_locks];
    for (int i=0; i<num_locks; i++) {
       omp_init_lock(&memlock[i]);
-      lock_min[i] = (i*xres)/num_locks;
-      lock_max[i] = ((i+1)*xres)/num_locks - 1;
+      lock_min[i] = (i*yres)/num_locks;
+      lock_max[i] = ((i+1)*yres)/num_locks - 1;
       //fprintf(stderr,"\n lock %d from %d to %d",i,lock_min[i],lock_max[i]); fflush(stderr);
    }
 
@@ -340,12 +358,27 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          continue;
       }
 
-      // use x-array coordinates to determine which lock(s) to get;
-      //   because the x coord is the slower-varying index in memory
-      // so, what?
+      // finally, check in z-direction
+      minpos = 9.9e+9;
+      maxpos = -9.9e+9;
+      for (int i=0; i<3; i++) {
+         // find location in image coordinates
+         const double pos = dot(vz,this_tri->node[i]->loc) - zmin;
+         if (pos > maxpos) maxpos = pos;
+         if (pos < minpos) minpos = pos;
+      }
+      if ((maxpos+thick) < 0.0 ||
+          (minpos-thick) > zsize) {
+         // skip this tri
+         this_tri = this_tri->next_tri;
+         continue;
+      }
+
+      // use y-array coordinates to determine which lock(s) to get;
 #ifdef _OPENMP
-      int lowbound = floor((maxpos+thick)/dd) - 1;
-      int highbound = floor((minpos-thick)/dd) + 1;
+      int lowbound = floor((minpos-thick)/dd) - 0;
+      int highbound = floor((maxpos+thick)/dd) + 1;
+      //if (omp_get_thread_num() == 0) fprintf(stderr,"\n lowbound %d   highbound %d",lowbound,highbound); fflush(stderr);
       // loop through locks, grabbing the right ones
       for (int i=0; i<num_locks; i++ ) {
          if (lowbound > lock_max[i] || highbound < lock_min[i]) {
@@ -353,6 +386,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
          } else {
             // this tri will write to pixels in this band
             omp_set_lock(&memlock[i]);
+            //if (omp_get_thread_num() == 0) fprintf(stderr,"\n  grabbed lock %d",i); fflush(stderr);
          }
       }
 #endif
@@ -374,12 +408,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       //}
 
       // new method:
-      //int subdivisions;
-      //if (hiq) subdivisions = (int)(4.0*sidelen/dd);
-      //else subdivisions = (int)(2.5*sidelen/dd);
       int subdivisions = (int)((2.5+1.5*thisq)*sidelen/dd);
       if (subdivisions < 1) subdivisions = 1;
-      // if (subdivisions > 400) subdivisions = 400;
       //fprintf(stderr,"sidelen/dd is %g, area is %g, sidelen is %g\n",sidelen/dd,area,sidelen);
 
       // fprintf(stderr,"this tri is at %g %g %g, %g %g %g, %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,n1->loc.x,n1->loc.y,n1->loc.z,n2->loc.x,n2->loc.y,n2->loc.z);
@@ -401,13 +431,11 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       double factor = (1.e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
       if (is_solid) { 
          // flip if triangle points away from viewer
-         // OMG, this is wrong!!!!! It should be sgn(dot())
-         // Wait, we're using the absolute area of the tri, so it's OK.
+         // We're using the absolute area of the tri, so it's OK.
          factor *= dot(trinorm,vz);
       }
 
       if (debug_write) {
-         //fprintf(stderr,"%g %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,dot(trinorm,vz));
          fprintf(debug_out,"%g %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,dot(trinorm,vz));
       }
 
@@ -485,10 +513,13 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
             }
 #else  // not Gaussian
 
+            // only draw this one if zpos is within range (we already subtracted zmin)
+            if (zpos > 0.0 && zpos < zsize) {
+
             // find lower-left pixel coordinate (be able to accept negative quantities)
             const int xloc = (int)(floor(xpos/dd));
             const int yloc = (int)(floor(ypos/dd));
-            // fprintf(stderr,"   which is %g %g, cell %d %d\n",xpos,ypos,xloc,yloc);
+            //if (omp_get_thread_num() == 0) fprintf(stderr,"   which is %g %g, cell %d %d\n",xpos,ypos,xloc,yloc);
 
             // reset xpos, ypos as local cell coordinates
             xpos = xpos/dd - xloc;
@@ -501,8 +532,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
                // finally, set the density of this point
                double rfactor = factor;
-               if (is_solid) {
+               if (is_solid && is_fade) {
                   // zpos is always positive---it's the raw distance from the zmin plane
+                  rfactor *= pow(zpos,2);
+               } else if (is_solid || is_fade) {
                   rfactor *= zpos;
                }
 
@@ -529,6 +562,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
                // (re)set the z position (indicates which layers/images to which to write)
                const int zloc = (int)(floor(zpos/ddz));
+               //if (zloc != 0) fprintf(stderr,"zloc %d  where zpos %g and ddz %g\n",zloc,zpos,ddz);
+
+               // only continue of zloc can point to a valid layer
+               if (zloc > -1 || zloc < num_images-1) {
                zpos = zpos/ddz - zloc;
                double rtemp = 0.0;
                double stemp = 0.0;
@@ -599,7 +636,9 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
                   }
 
                } // if not solid
+               } // if zloc is valid
             } // if multiple images
+            } // if zpos is within bounds
 
 #endif  // not Gaussian
          }
@@ -607,9 +646,13 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
       }
 
 #ifdef _OPENMP
-      // loop through locks, releasing them all
+      // loop through locks, releasing only the ones we used
       for (int i=0; i<num_locks; i++ ) {
-         omp_unset_lock(&memlock[i]);
+         if (lowbound > lock_max[i] || highbound < lock_min[i]) {
+            // this tri did not use these pixel rows, do not unset this one
+         } else {
+            omp_unset_lock(&memlock[i]);
+         }
       }
 #endif
 
@@ -620,6 +663,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
       this_tri = this_tri->next_tri;
    }
+#ifdef _OPENMP
+   fprintf(stderr,"\nThread %d wrote %d triangles",omp_get_thread_num(), cnt);
+#endif
+
 } // end omp section
    fprintf(stderr,"\n");
 
@@ -661,10 +708,16 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, int size,
 
          FILE* ofp;
          if (num_images == 1) {
-            ofp = stdout;
+            if (!prefix) {
+               ofp = stdout;
+            } else {
+               char file_name[255];
+               sprintf(file_name, "%s.pgm", prefix);
+               ofp = fopen(file_name, "wb");
+            }
          } else {
             char file_name[255];
-            sprintf(file_name, "%s_%02d.png", prefix, inum);
+            sprintf(file_name, "%s_s%02d.pgm", prefix, inum);
             ofp = fopen(file_name, "wb");
          }
 
@@ -795,7 +848,13 @@ int write_png_image(png_byte** image,int xres,int yres,int depth,char *prefix,in
 
    // if we were given a prefix, write to a file instead of stdout
    if (num_images == 1) {
-      fp = stdout;
+      if (!prefix) {
+         fp = stdout;
+      } else {
+         char file_name[255];
+         sprintf(file_name, "%s.png", prefix);
+         fp = fopen(file_name, "wb");
+      }
    } else {
       sprintf(file_name, "%s_%02d.png", prefix, img_num);
       fp = fopen(file_name, "wb");
