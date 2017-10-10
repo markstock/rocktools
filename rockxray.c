@@ -5,7 +5,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-15  Mark J. Stock
+ * Copyright (C) 2004-17  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -156,6 +156,7 @@ int main(int argc,char **argv) {
    int do6 = FALSE;
    int do19 = FALSE;
    int do76 = FALSE;
+   int this_view = -1;				// if -1, do all views
    char infile[255];				/* name of input file */
    char progname[255];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
@@ -252,6 +253,8 @@ int main(int argc,char **argv) {
          do19 = TRUE;
       } else if (strncmp(argv[i], "-do76", 5) == 0) {
          do76 = TRUE;
+      } else if (strncmp(argv[i], "-doview", 4) == 0) {
+         this_view = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-d", 2) == 0) {
          viewp.x = atof(argv[++i]);
          viewp.y = atof(argv[++i]);
@@ -287,6 +290,7 @@ int main(int argc,char **argv) {
 
    if (do6) {
       for (int i=0; i<6; i++) {
+       if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
          char new_prefix[255];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
@@ -297,10 +301,12 @@ int main(int argc,char **argv) {
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
                            border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
+       }
       }
 
    } else if (do19) {
       for (int i=0; i<19; i++) {
+       if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
          char new_prefix[255];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
@@ -311,10 +317,12 @@ int main(int argc,char **argv) {
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
                            border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
+       }
       }
 
    } else if (do76) {
       for (int i=0; i<76; i++) {
+       if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
          char new_prefix[255];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
@@ -325,6 +333,7 @@ int main(int argc,char **argv) {
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
                            border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
+       }
       }
 
    } else {
