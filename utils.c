@@ -95,44 +95,57 @@ tri_pointer delete_tri (tri_pointer this) {
  */
 node_ptr add_to_nodes_list (tri_pointer the_tri, int* num_nodes, int index, VEC* location, bin_ptr thebin) {
 
+   // For very large meshes, merging nodes on read can be time-consuming; toggle this here.
+   // FALSE will read very quickly, TRUE will simplify meshes and support smoothing.
+   // We should make this a command-line variable (-nomerge)
+   int try_match = TRUE;
    node_ptr curr_node = NULL;
    int ibin = 0;
    int found_match = FALSE;
    double thisx;
    double match_thresh = 1.e-5;     /* threshhold to match node locations */
 
-   // first, search the list for a node close to this
-   // new way to search
+   // find the bin
    if (thebin) {
       // start searching only in bin ibin
       if (thebin->axis == 0) thisx = (*location).x;
       else if (thebin->axis == 1) thisx = (*location).y;
       else thisx = (*location).z;
       ibin = (int)((thisx-thebin->start)/thebin->dx);
-
-      // fprintf(stderr,"  search in bin %d\n",ibin); fflush(stderr);
-      curr_node = thebin->b[ibin];
-   } else {
-      // search through all nodes, starting with the head
-      curr_node = node_head;
    }
-   while (curr_node) {
-      //fprintf(stderr,"  does location (%g %g) match node at (%g %g)? \n",(*location).x,(*location).y,curr_node->loc.x,curr_node->loc.y); fflush(stderr);
-      if (fabs(curr_node->loc.x - (*location).x) < match_thresh) {
-         if (fabs(curr_node->loc.y - (*location).y) < match_thresh) {
-            if (fabs(curr_node->loc.z - (*location).z) < match_thresh) {
-               found_match = TRUE;
-               // fprintf(stderr,"yes!\n");
-               break;
+
+   // new way to search
+   if (try_match) {
+
+      if (thebin) {
+         // fprintf(stderr,"  search in bin %d\n",ibin); fflush(stderr);
+         curr_node = thebin->b[ibin];
+      } else {
+         // search through all nodes, starting with the head
+         curr_node = node_head;
+      }
+
+      // search the list for a node close to this
+      while (curr_node) {
+         //fprintf(stderr,"  does location (%g %g) match node at (%g %g)? \n",(*location).x,(*location).y,curr_node->loc.x,curr_node->loc.y); fflush(stderr);
+         if (fabs(curr_node->loc.x - (*location).x) < match_thresh) {
+            if (fabs(curr_node->loc.y - (*location).y) < match_thresh) {
+               if (fabs(curr_node->loc.z - (*location).z) < match_thresh) {
+                  found_match = TRUE;
+                  // fprintf(stderr,"yes!\n");
+                  break;
+               }
+            } else {
+               // fprintf(stderr,"no.\n");
             }
          } else {
             // fprintf(stderr,"no.\n");
          }
-      } else {
-         // fprintf(stderr,"no.\n");
+         if (thebin) curr_node = curr_node->next_bnode;
+         else curr_node = curr_node->next_node;
       }
-      if (thebin) curr_node = curr_node->next_bnode;
-      else curr_node = curr_node->next_node;
+   } else {
+      // do not attempt to match with existing nodes
    }
 
 
