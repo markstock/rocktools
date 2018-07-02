@@ -7,7 +7,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2003-2004,2006-2007,14  Mark J. Stock
+ * Copyright (C) 1999,2003-4,2006-7,14-5  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ int num_tri = 0;
 
 void rescale_nodes (VEC);
 void translate_nodes (VEC);
+void remap_to_cylinder ();
 int Usage(char[255],int);
 
 
@@ -55,6 +56,7 @@ int main(int argc,char **argv) {
    int do_rescale = FALSE;
    int do_trans = FALSE;
    int do_trans_first = FALSE;
+   int do_cyl = FALSE;
    VEC scale = {1., 1., 1.};
    VEC trans = {0., 0., 0.};
 
@@ -85,6 +87,8 @@ int main(int argc,char **argv) {
          } else {
             scale.z = scale.y;
          }
+      } else if (strncmp(argv[i], "-c", 2) == 0) {
+         do_cyl = TRUE;
       } else if (strncmp(argv[i], "-t", 2) == 0) {
          do_trans = TRUE;
          if (!do_rescale) do_trans_first = TRUE;
@@ -116,9 +120,11 @@ int main(int argc,char **argv) {
    tri_head = read_input (infile,FALSE,NULL);
 
    // apply any transformations
+   // we should really do this like in stickkit - with a list of operations
    if (do_trans_first) translate_nodes (trans);
    if (do_rescale) rescale_nodes (scale);
    if (do_trans && !do_trans_first) translate_nodes (trans);
+   if (do_cyl) remap_to_cylinder();
 
    // Write triangles to stdout
    (void) write_output (tri_head,output_format,keep_normals,argc,argv);
@@ -167,6 +173,30 @@ void translate_nodes (VEC trans) {
    return;
 }
 
+/*
+ * Remap nodes to a cylinder
+ *
+ * Initial version assumes original +x direction (0..1) is new theta (0..2pi)
+ * and cylinder axis is +z
+ */
+void remap_to_cylinder () {
+
+   node_ptr this_node;
+
+   // then, perturb each according to the normal
+   this_node = node_head;
+   while (this_node) {
+      //float theta = atanf(this_node->loc.y, this_node->loc.x);
+      float theta = 2.0 * 3.14159265358979 * this_node->loc.x;
+      //float rad = sqrt(pow(this_node->loc.x,2) + pow(this_node->loc.x,2));
+      float rad = this_node->loc.y + 1.0 / (2.0 * 3.14159265358979);
+      this_node->loc.x = rad * cos(theta);
+      this_node->loc.y = rad * sin(theta);
+      this_node = this_node->next_node;
+   }
+
+   return;
+}
 
 /*
  * This function writes basic usage information to stderr,
