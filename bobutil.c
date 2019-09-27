@@ -620,27 +620,72 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
   }
 
 
-   // finally, print the image
-   if (outType == bob) {
+  // then, expand to allow 3D printing
+  if (FALSE) {
+    fprintf(stderr,"Growing base to avoid overhangs\n"); fflush(stderr);
 
-      fprintf(stderr,"Writing BOB file"); fflush(stderr);
+    // depending on the angle (this should work for anything steeper than 45 degrees (45-90)
+    //const float angle = 45;
 
-      // finally, write the file
-      FILE *ofp = stdout;
-      (void) write_bob_file_from_uchar(ofp, dat, nx, ny, nz);
+    // compute adjacent and diagonal weights
+    //const float tana = tan((90.0-angle)*M_PI/180.0);
+    //const float aw1 = tana;
+    //const float aw2 = 1.0-tana;
+    //const float tast = tana/sqrt(2.0);
+    //const float dw1 = tast*tast;
+    //const float dw2 = tast*(1.0-tast);
+    //const float dw3 = (1.0-tast)*(1.0-tast);
 
-      // free the memory and return
-      free_3d_array_b(dat, nx, ny, nz);
+    // iterate through z-planes, from top to bottom
+    for (int iz=nz-2; iz>0; --iz) {
 
-      fprintf(stderr,"\n");
-      fflush(stderr);
+      // for this layer, look up (+z) for data
+      for (int ix=1; ix<nx-1; ++ix) {
+      for (int iy=1; iy<ny-1; ++iy) {
+        // enforce 45 degree angle (255 = inside object)
+        // linearly interpolate to find diagonal values (as they are farther than 1 dx away)
+        const int ne = (int)(0.5000*(float)dat[ix+1][iy+1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
+                             0.2071*(float)dat[ix+1][iy][iz+1] + 0.2071*(float)dat[ix][iy+1][iz+1]);
+        const int nw = (int)(0.5000*(float)dat[ix-1][iy+1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
+                             0.2071*(float)dat[ix-1][iy][iz+1] + 0.2071*(float)dat[ix][iy+1][iz+1]);
+        const int sw = (int)(0.5000*(float)dat[ix-1][iy-1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
+                             0.2071*(float)dat[ix-1][iy][iz+1] + 0.2071*(float)dat[ix][iy-1][iz+1]);
+        const int se = (int)(0.5000*(float)dat[ix+1][iy-1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
+                             0.2071*(float)dat[ix+1][iy][iz+1] + 0.2071*(float)dat[ix][iy-1][iz+1]);
+        // the adjacent columns are easy
+        const int xneib = min((int)dat[ix-1][iy][iz+1], (int)dat[ix+1][iy][iz+1]);
+        const int yneib = min((int)dat[ix][iy-1][iz+1], (int)dat[ix][iy+1][iz+1]);
+        const int aneib = min(sw, ne);
+        const int bneib = min(se, nw);
+        const int hneib = min(xneib, yneib);
+        const int dneib = min(aneib, bneib);
+        const int allnb = min(hneib, dneib);
+        const int currv = (int)dat[ix][iy][iz];
+        dat[ix][iy][iz] = (unsigned char)max(currv, allnb);
+      }
+      }
+    }
+  }
 
-   } else {
-      fprintf(stderr,"Output file format unsupported.\n"); fflush(stderr);
 
-   }
+  // finally, print the image
+  if (outType == bob) {
+    fprintf(stderr,"Writing BOB file"); fflush(stderr);
 
-   // replace the old list with the new list
-   return(0);
+    // finally, write the file
+    FILE *ofp = stdout;
+    (void) write_bob_file_from_uchar(ofp, dat, nx, ny, nz);
+
+    // free the memory and return
+    free_3d_array_b(dat, nx, ny, nz);
+
+    fprintf(stderr,"\n");
+    fflush(stderr);
+  } else {
+    fprintf(stderr,"Output file format unsupported.\n"); fflush(stderr);
+  }
+
+  // replace the old list with the new list
+  return(0);
 }
 
