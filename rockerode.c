@@ -156,9 +156,8 @@ int Usage(char progname[80],int status) {
    };
 
    fprintf(stderr, "usage:\n  %s infile [-options]\n\n", progname);
-   for (cpp = help_message; *cpp; cpp++)
-      fprintf(stderr, "%s\n", *cpp);
-      fflush(stderr);
+   for (cpp = help_message; *cpp; cpp++) fprintf(stderr, "%s\n", *cpp);
+   fflush(stderr);
    exit(status);
    return(0);
 }
