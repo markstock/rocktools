@@ -625,16 +625,16 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
     fprintf(stderr,"Growing base to avoid overhangs\n"); fflush(stderr);
 
     // depending on the angle (this should work for anything steeper than 45 degrees (45-90)
-    //const float angle = 45;
+    const float angle = 45;
 
     // compute adjacent and diagonal weights
-    //const float tana = tan((90.0-angle)*M_PI/180.0);
-    //const float aw1 = tana;
-    //const float aw2 = 1.0-tana;
-    //const float tast = tana/sqrt(2.0);
-    //const float dw1 = tast*tast;
-    //const float dw2 = tast*(1.0-tast);
-    //const float dw3 = (1.0-tast)*(1.0-tast);
+    const float tana = tan((90.0-angle)*M_PI/180.0);
+    const float aw1 = tana;
+    const float aw2 = 1.0-tana;
+    const float tast = tana/sqrt(2.0);
+    const float dw1 = tast*tast;
+    const float dw2 = tast*(1.0-tast);
+    const float dw3 = (1.0-tast)*(1.0-tast);
 
     // iterate through z-planes, from top to bottom
     for (int iz=nz-2; iz>0; --iz) {
@@ -644,17 +644,21 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
       for (int iy=1; iy<ny-1; ++iy) {
         // enforce 45 degree angle (255 = inside object)
         // linearly interpolate to find diagonal values (as they are farther than 1 dx away)
-        const int ne = (int)(0.5000*(float)dat[ix+1][iy+1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
-                             0.2071*(float)dat[ix+1][iy][iz+1] + 0.2071*(float)dat[ix][iy+1][iz+1]);
-        const int nw = (int)(0.5000*(float)dat[ix-1][iy+1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
-                             0.2071*(float)dat[ix-1][iy][iz+1] + 0.2071*(float)dat[ix][iy+1][iz+1]);
-        const int sw = (int)(0.5000*(float)dat[ix-1][iy-1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
-                             0.2071*(float)dat[ix-1][iy][iz+1] + 0.2071*(float)dat[ix][iy-1][iz+1]);
-        const int se = (int)(0.5000*(float)dat[ix+1][iy-1][iz+1] + 0.0858*(float)dat[ix][iy][iz+1] +
-                             0.2071*(float)dat[ix+1][iy][iz+1] + 0.2071*(float)dat[ix][iy-1][iz+1]);
-        // the adjacent columns are easy
-        const int xneib = min((int)dat[ix-1][iy][iz+1], (int)dat[ix+1][iy][iz+1]);
-        const int yneib = min((int)dat[ix][iy-1][iz+1], (int)dat[ix][iy+1][iz+1]);
+        const int ne = (int)(dw1*(float)dat[ix+1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                             dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
+        const int nw = (int)(dw1*(float)dat[ix-1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                             dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
+        const int sw = (int)(dw1*(float)dat[ix-1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                             dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
+        const int se = (int)(dw1*(float)dat[ix+1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                             dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
+        // the adjacent columns are easier
+        const int nn = (int)(aw1*(float)dat[ix][iy+1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+        const int ee = (int)(aw1*(float)dat[ix+1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+        const int ww = (int)(aw1*(float)dat[ix-1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+        const int ss = (int)(aw1*(float)dat[ix][iy-1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+        const int xneib = min(ee, ww);
+        const int yneib = min(nn, ss);
         const int aneib = min(sw, ne);
         const int bneib = min(se, nw);
         const int hneib = min(xneib, yneib);
