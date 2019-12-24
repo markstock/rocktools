@@ -343,7 +343,7 @@ double minimum_distance(double vx, double vy, double vz,
  * "thick" is the thickness of the mesh, in world units
  */
 int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
-      double dx, double thick, int diffuseSteps, char* output_format) {
+      double dx, double thick, int diffuseSteps, double repose, char* output_format) {
 
    int nx, ny, nz;
    double start[3];
@@ -621,11 +621,11 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
 
 
   // then, expand to allow 3D printing
-  if (FALSE) {
+  if (repose > 0.0 and repose < 90.1) {
     fprintf(stderr,"Growing base to avoid overhangs\n"); fflush(stderr);
 
     // depending on the angle (this should work for anything steeper than 45 degrees (45-90)
-    const float angle = 45;
+    const float angle = (float)repose;
 
     // compute adjacent and diagonal weights
     const float tana = tan((90.0-angle)*M_PI/180.0);
@@ -671,6 +671,8 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
     }
   }
 
+  // grow or shrink uniformly?
+  // also called dilate/erode
 
   // finally, print the image
   if (outType == bob) {
