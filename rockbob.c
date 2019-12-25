@@ -38,7 +38,7 @@ node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
-extern int write_bob(tri_pointer,double*,double*,double*,double,double,int,double,char*);
+extern int write_bob(tri_pointer,double*,double*,double*,double,double,int,double,double,char*);
 int Usage(char[255],int);
 
 int main(int argc,char **argv) {
@@ -51,6 +51,7 @@ int main(int argc,char **argv) {
    double dx;					/* voxel size */
    double thickness;				/* thickness of mesh, world coords */
    double repose;				/* angle of repose (45-90), negative turns off */
+   double erode;				/* number of cells to erode the volume, neg is dilate */
    double xb[3],yb[3],zb[3];			/* bounds, in world units, [t/f,min,max] */
    tri_pointer tri_head = NULL;
 
@@ -58,6 +59,7 @@ int main(int argc,char **argv) {
    dx = -1.0;
    thickness = -1.0;
    repose = -45.0;
+   erode = 0.0;
    xb[0] = -1;					// negative means "do not use bounds"
    xb[1] = 0;
    xb[2] = 0;
@@ -103,6 +105,8 @@ int main(int argc,char **argv) {
          diffuseSteps = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-repose", 3) == 0) {
          repose = atof(argv[++i]);
+      } else if (strncmp(argv[i], "-erode", 3) == 0) {
+         erode = atof(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
          strncpy(output_format,argv[i]+2,4);
       } else
@@ -113,7 +117,7 @@ int main(int argc,char **argv) {
    tri_head = read_input(infile,FALSE,NULL);
 
    /* Write the image to stdout */
-   (void) write_bob(tri_head,xb,yb,zb,dx,thickness,diffuseSteps,repose,output_format);
+   (void) write_bob(tri_head,xb,yb,zb,dx,thickness,diffuseSteps,repose,erode,output_format);
 
    fprintf(stderr,"Done.\n");
    exit(0);
@@ -148,6 +152,10 @@ int Usage(char progname[255],int status) {
        "                                                                           ",
        "   -repose angle                                                           ",
        "               create volume supports under object (45-90) (default=none)  ",
+       "                                                                           ",
+       "   -erode distance                                                         ",
+       "               number of cells to erode (shrink) the volume, negative      ",
+       "               will dilate (grow) instead (default=0)                      ",
        "                                                                           ",
        "   -okey       specify output format, key= bob, bof, default = bob         ",
        "                                                                           ",

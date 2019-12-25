@@ -343,7 +343,8 @@ double minimum_distance(double vx, double vy, double vz,
  * "thick" is the thickness of the mesh, in world units
  */
 int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
-      double dx, double thick, int diffuseSteps, double repose, char* output_format) {
+      double dx, double thick, int diffuseSteps, double repose, double erode,
+      char* output_format) {
 
    int nx, ny, nz;
    double start[3];
@@ -562,136 +563,190 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
 
 
    // optionally diffuse the brick-of-whatevers
-  // smooth the bof in-place (eventually put this in bobtools)
-  if (diffuseSteps > 0) {
+   // smooth the bof in-place (eventually put this in bobtools)
+   if (diffuseSteps > 0) {
 
-    // allocate temporary bof array - but only one plane!
-    unsigned char** temp1 = allocate_2d_array_b(ny,nz);
-    unsigned char** temp2 = allocate_2d_array_b(ny,nz);
+      // allocate temporary bof array - but only one plane!
+      unsigned char** temp1 = allocate_2d_array_b(ny,nz);
+      unsigned char** temp2 = allocate_2d_array_b(ny,nz);
 
-    fprintf(stderr,"diffusing");
-    fflush(stderr);
-    for (int iter=0; iter<diffuseSteps; iter++) {
-      fprintf(stderr,".");
+      fprintf(stderr,"diffusing");
       fflush(stderr);
+      for (int iter=0; iter<diffuseSteps; iter++) {
+         fprintf(stderr,".");
+         fflush(stderr);
 
-      // copy first plane into temp1
-      for (int j=0; j<ny; j++)
-        for (int k=0; k<nz; k++)
-          temp1[j][k] = dat[0][j][k];
+         // copy first plane into temp1
+         for (int j=0; j<ny; j++)
+            for (int k=0; k<nz; k++)
+               temp1[j][k] = dat[0][j][k];
 
-      // iterate through planes
-      for (int ix=1; ix<nx-1; ix++) {
+         // iterate through planes
+         for (int ix=1; ix<nx-1; ix++) {
 
-        // do the diffusion, put it in temp2
-        for (int iy=1; iy<ny-1; iy++) {
-        for (int iz=1; iz<nz-1; iz++) {
-          unsigned int neibsum = (unsigned int)dat[ix][iy][iz+1]
-                         +(unsigned int)dat[ix][iy][iz-1]
-                         +(unsigned int)dat[ix][iy+1][iz]
-                         +(unsigned int)dat[ix][iy-1][iz]
-                         +(unsigned int)dat[ix+1][iy][iz]
-                         +(unsigned int)temp1[iy][iz];
-          temp2[iy][iz] = (unsigned char)((neibsum + 6*(unsigned int)dat[ix][iy][iz] + 6) / 12);
-        }
-        }
+            // do the diffusion, put it in temp2
+            for (int iy=1; iy<ny-1; iy++) {
+            for (int iz=1; iz<nz-1; iz++) {
+               unsigned int neibsum = (unsigned int)dat[ix][iy][iz+1]
+                                     +(unsigned int)dat[ix][iy][iz-1]
+                                     +(unsigned int)dat[ix][iy+1][iz]
+                                     +(unsigned int)dat[ix][iy-1][iz]
+                                     +(unsigned int)dat[ix+1][iy][iz]
+                                     +(unsigned int)temp1[iy][iz];
+               temp2[iy][iz] = (unsigned char)((neibsum + 6*(unsigned int)dat[ix][iy][iz] + 6) / 12);
+            }
+            }
 
-        // we can overwrite plane ix-1 now
-        for (int j=0; j<ny; j++)
-          for (int k=0; k<nz; k++)
-            dat[ix-1][j][k] = temp1[j][k];
+            // we can overwrite plane ix-1 now
+            for (int j=0; j<ny; j++)
+               for (int k=0; k<nz; k++)
+                  dat[ix-1][j][k] = temp1[j][k];
 
-        // and swap planes
-        for (int j=0; j<ny; j++)
-          for (int k=0; k<nz; k++)
-            temp1[j][k] = temp2[j][k];
+            // and swap planes
+            for (int j=0; j<ny; j++)
+               for (int k=0; k<nz; k++)
+                  temp1[j][k] = temp2[j][k];
+         }
+
+         // copy temp1 into last plane
+         for (int j=0; j<ny; j++)
+            for (int k=0; k<nz; k++)
+               dat[nx-2][j][k] = temp1[j][k];
       }
 
-      // copy temp1 into last plane
-      for (int j=0; j<ny; j++)
-        for (int k=0; k<nz; k++)
-          dat[nx-2][j][k] = temp1[j][k];
-    }
-
-    free_2d_array_b(temp1);
-    free_2d_array_b(temp2);
-    fprintf(stderr,"\n");
-    fflush(stderr);
-  }
+      free_2d_array_b(temp1);
+      free_2d_array_b(temp2);
+      fprintf(stderr,"\n");
+      fflush(stderr);
+   }
 
 
-  // then, expand to allow 3D printing
-  if (repose > 0.0 and repose < 90.1) {
-    fprintf(stderr,"Growing base to avoid overhangs\n"); fflush(stderr);
+   // then, expand to allow 3D printing
+   if (repose > 0.0 && repose < 90.1) {
+      fprintf(stderr,"Growing base to avoid overhangs\n"); fflush(stderr);
 
-    // depending on the angle (this should work for anything steeper than 45 degrees (45-90)
-    const float angle = (float)repose;
+      // depending on the angle (this should work for anything steeper than 45 degrees (45-90)
+      const float angle = (float)repose;
 
-    // compute adjacent and diagonal weights
-    const float tana = tan((90.0-angle)*M_PI/180.0);
-    const float aw1 = tana;
-    const float aw2 = 1.0-tana;
-    const float tast = tana/sqrt(2.0);
-    const float dw1 = tast*tast;
-    const float dw2 = tast*(1.0-tast);
-    const float dw3 = (1.0-tast)*(1.0-tast);
+      // compute adjacent and diagonal weights
+      const float tana = tan((90.0-angle)*M_PI/180.0);
+      const float aw1 = tana;
+      const float aw2 = 1.0-tana;
+      const float tast = tana/sqrt(2.0);
+      const float dw1 = tast*tast;
+      const float dw2 = tast*(1.0-tast);
+      const float dw3 = (1.0-tast)*(1.0-tast);
 
-    // iterate through z-planes, from top to bottom
-    for (int iz=nz-2; iz>0; --iz) {
+      // iterate through z-planes, from top to bottom
+      for (int iz=nz-2; iz>0; --iz) {
 
-      // for this layer, look up (+z) for data
-      for (int ix=1; ix<nx-1; ++ix) {
-      for (int iy=1; iy<ny-1; ++iy) {
-        // enforce 45 degree angle (255 = inside object)
-        // linearly interpolate to find diagonal values (as they are farther than 1 dx away)
-        const int ne = (int)(dw1*(float)dat[ix+1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
-                             dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
-        const int nw = (int)(dw1*(float)dat[ix-1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
-                             dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
-        const int sw = (int)(dw1*(float)dat[ix-1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
-                             dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
-        const int se = (int)(dw1*(float)dat[ix+1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
-                             dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
-        // the adjacent columns are easier
-        const int nn = (int)(aw1*(float)dat[ix][iy+1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
-        const int ee = (int)(aw1*(float)dat[ix+1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
-        const int ww = (int)(aw1*(float)dat[ix-1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
-        const int ss = (int)(aw1*(float)dat[ix][iy-1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
-        const int xneib = min(ee, ww);
-        const int yneib = min(nn, ss);
-        const int aneib = min(sw, ne);
-        const int bneib = min(se, nw);
-        const int hneib = min(xneib, yneib);
-        const int dneib = min(aneib, bneib);
-        const int allnb = min(hneib, dneib);
-        const int currv = (int)dat[ix][iy][iz];
-        dat[ix][iy][iz] = (unsigned char)max(currv, allnb);
+         // for this layer, look up (+z) for data
+         for (int ix=1; ix<nx-1; ++ix) {
+         for (int iy=1; iy<ny-1; ++iy) {
+            // enforce 45 degree angle (255 = inside object)
+            // linearly interpolate to find diagonal values (as they are farther than 1 dx away)
+            const int ne = (int)(dw1*(float)dat[ix+1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                                 dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
+            const int nw = (int)(dw1*(float)dat[ix-1][iy+1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                                 dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy+1][iz+1]);
+            const int sw = (int)(dw1*(float)dat[ix-1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                                 dw2*(float)dat[ix-1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
+            const int se = (int)(dw1*(float)dat[ix+1][iy-1][iz+1] + dw3*(float)dat[ix][iy][iz+1] +
+                                 dw2*(float)dat[ix+1][iy][iz+1] + dw2*(float)dat[ix][iy-1][iz+1]);
+            // the adjacent columns are easier
+            const int nn = (int)(aw1*(float)dat[ix][iy+1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+            const int ee = (int)(aw1*(float)dat[ix+1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+            const int ww = (int)(aw1*(float)dat[ix-1][iy][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+            const int ss = (int)(aw1*(float)dat[ix][iy-1][iz+1] + aw2*(float)dat[ix][iy][iz+1]);
+            const int xneib = min(ee, ww);
+            const int yneib = min(nn, ss);
+            const int aneib = min(sw, ne);
+            const int bneib = min(se, nw);
+            const int hneib = min(xneib, yneib);
+            const int dneib = min(aneib, bneib);
+            const int allnb = min(hneib, dneib);
+            const int currv = (int)dat[ix][iy][iz];
+            dat[ix][iy][iz] = (unsigned char)max(currv, allnb);
+         }
+         }
       }
+   }
+
+   // grow or shrink uniformly, also called dilate/erode
+   if (erode > 0.0) {
+      fprintf(stderr,"Eroding voxels\n"); fflush(stderr);
+
+      // first, allocate a copy of the 3d voxel array
+      unsigned char*** temp = allocate_3d_array_b (nx, ny, nz);
+
+      // zero out the array
+      //for (int i=0; i<nx; i++) for (int j=0; j<ny; j++) for (int k=0; k<nz; k++) temp[i][j][k] = 0;
+
+      // and only erode one voxel at a time
+      for (int iter=0; iter<(int)(erode+0.999999); ++iter) {
+
+         double er = max(1.0, erode - (double)iter);
+         fprintf(stderr,"  eroding %g\n", er); fflush(stderr);
+
+         // copy the other array in first
+         for (int i=0; i<nx; i++)
+         for (int j=0; j<ny; j++)
+         for (int k=0; k<nz; k++)
+            temp[i][j][k] = dat[i][j][k];
+
+         // then march through the middle, filling the new one with an eroded version
+         for (int ix=1; ix<nx-1; ++ix) {
+         for (int iy=1; iy<ny-1; ++iy) {
+         for (int iz=1; iz<nz-1; ++iz) {
+            // search 27 neighbors from the other array
+            for (int i=-1; i<2; ++i) {
+            for (int j=-1; j<2; ++j) {
+            for (int k=-1; k<2; ++k) {
+               // simple - test vs value, regardless of distance
+               //temp[ix][iy][iz] = min(temp[ix][iy][iz], dat[ix+i][iy+j][iz+k]);
+               // sophisticated - test vs value on interpolated line
+               const double dist = sqrt((double)(i*i+j*j+k*k));
+               if (dist > 0.1) {
+                  const double wgt = 1.0/dist;
+                  const unsigned char testval = wgt*dat[ix+i][iy+j][iz+k]
+                                              + (1.0-wgt)*temp[ix][iy][iz];
+                  temp[ix][iy][iz] = min(temp[ix][iy][iz], testval);
+               }
+            }
+            }
+            }
+         }
+         }
+         }
+
+         // swap pointers to the two arrays
+         unsigned char*** swap = dat;
+         dat = temp;
+         temp = swap;
       }
-    }
-  }
 
-  // grow or shrink uniformly?
-  // also called dilate/erode
+      // return the finished array and delete the other
+      free_3d_array_b(temp, nx, ny, nz);
+   }
 
-  // finally, print the image
-  if (outType == bob) {
-    fprintf(stderr,"Writing BOB file"); fflush(stderr);
+   // finally, print the image
+   if (outType == bob) {
+      fprintf(stderr,"Writing BOB file"); fflush(stderr);
 
-    // finally, write the file
-    FILE *ofp = stdout;
-    (void) write_bob_file_from_uchar(ofp, dat, nx, ny, nz);
+      // finally, write the file
+      FILE *ofp = stdout;
+      (void) write_bob_file_from_uchar(ofp, dat, nx, ny, nz);
 
-    // free the memory and return
-    free_3d_array_b(dat, nx, ny, nz);
+      // free the memory and return
+      free_3d_array_b(dat, nx, ny, nz);
 
-    fprintf(stderr,"\n");
-    fflush(stderr);
-  } else {
-    fprintf(stderr,"Output file format unsupported.\n"); fflush(stderr);
-  }
+      fprintf(stderr,"\n");
+      fflush(stderr);
+   } else {
+      fprintf(stderr,"Output file format unsupported.\n"); fflush(stderr);
+   }
 
-  // replace the old list with the new list
-  return(0);
+   // replace the old list with the new list
+   return(0);
 }
 
