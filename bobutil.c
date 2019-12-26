@@ -685,7 +685,8 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
       // and only erode one voxel at a time
       for (int iter=0; iter<(int)(erode+0.999999); ++iter) {
 
-         double er = max(1.0, erode - (double)iter);
+         double er = erode - (double)iter;
+         if (er > 1.0) er = 1.0;
          fprintf(stderr,"  eroding %g\n", er); fflush(stderr);
 
          // copy the other array in first
@@ -695,6 +696,7 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
             temp[i][j][k] = dat[i][j][k];
 
          // then march through the middle, filling the new one with an eroded version
+         #pragma omp parallel
          for (int ix=1; ix<nx-1; ++ix) {
          for (int iy=1; iy<ny-1; ++iy) {
          for (int iz=1; iz<nz-1; ++iz) {
