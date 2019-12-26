@@ -709,7 +709,7 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
                // sophisticated - test vs value on interpolated line
                const double dist = sqrt((double)(i*i+j*j+k*k));
                if (dist > 0.1) {
-                  const double wgt = 1.0/dist;
+                  const double wgt = er/dist;
                   const unsigned char testval = wgt*dat[ix+i][iy+j][iz+k]
                                               + (1.0-wgt)*temp[ix][iy][iz];
                   temp[ix][iy][iz] = min(temp[ix][iy][iz], testval);
