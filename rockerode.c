@@ -37,7 +37,7 @@ text_ptr text_head = NULL;
 
 int num_tri = 0;
 
-int Usage(char[80],int);
+int Usage(char[MAX_FN_LEN],int);
 extern int find_flow(tri_pointer);
 extern int fill_basins(tri_pointer);
 extern int erode_surface(tri_pointer, double);
@@ -51,8 +51,8 @@ int main(int argc,char **argv) {
    double erosion_factor = 0.0;		/* amount of smoothing to take place */
    //double v_thresh = 1.0;		/* threshhold for common normal, convex edge */
    //double c_thresh = 1.0;		/* threshhold for common normal, concave edge */
-   char infile[80];			/* name of input file, TIN only for starters */
-   char progname[80];			/* name of binary executable */
+   char infile[MAX_FN_LEN];			/* name of input file, TIN only for starters */
+   char progname[MAX_FN_LEN];			/* name of binary executable */
    char output_format[4];		/* file format extension for output */
    tri_pointer tri_head = NULL;
 
@@ -73,7 +73,7 @@ int main(int argc,char **argv) {
       } else if (strncmp(argv[i], "-s", 2) == 0) {
          total_steps = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else
          (void) Usage(progname,0);
    }
@@ -131,7 +131,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockerode */
    static char **cpp, *help_message[] =

@@ -37,7 +37,7 @@ node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
-int Usage(char[255],int);
+int Usage(char[MAX_FN_LEN],int);
 extern tri_pointer create_convex_hull ();
 
 //extern int write_output (tri_pointer, char[4], int, char**);
@@ -45,8 +45,8 @@ extern tri_pointer create_convex_hull ();
 int main(int argc,char **argv) {
 
    int writemoststable = TRUE;		// write out most- or least-stable balanced conformation?
-   char progname[255];			// name of binary executable
-   char infile[255];			// name of the file to act upon
+   char progname[MAX_FN_LEN];			// name of binary executable
+   char infile[MAX_FN_LEN];			// name of the file to act upon
    char output_format[4];		// file format extension for output
    tri_pointer tri_head = NULL;
 
@@ -68,7 +68,7 @@ int main(int argc,char **argv) {
          } else if (strncmp(argv[i], "-least", 2) == 0) {
             writemoststable = FALSE;
          } else if (strncmp(argv[i], "-o", 2) == 0) {
-            strncpy(output_format,argv[i]+2,4);
+            strncpy(output_format,argv[i]+2,3);
          } else if (strncmp(argv[i], "-", 1) == 0) {
             (void) Usage(progname,0);
          }
@@ -215,7 +215,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[255],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockbalance */
    static char **cpp, *help_message[] =

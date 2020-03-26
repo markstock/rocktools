@@ -146,7 +146,7 @@ static VEC seventysix_views[] = {
   {-4.1250361e-01,-5.9563265e-01,6.8924780e-01} };
 
 extern int write_xray(tri_pointer,VEC,double*,double*,double*,int,double,int,double,int,double,double,int,int,int,int,char*,char*,int);
-int Usage(char[255],int);
+int Usage(char[MAX_FN_LEN],int);
 
 int main(int argc,char **argv) {
 
@@ -157,8 +157,8 @@ int main(int argc,char **argv) {
    int do19 = FALSE;
    int do76 = FALSE;
    int this_view = -1;				// if -1, do all views
-   char infile[255];				/* name of input file */
-   char progname[255];				/* name of binary executable */
+   char infile[MAX_FN_LEN];				/* name of input file */
+   char progname[MAX_FN_LEN];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
    char* out_prefix = NULL;			/* prefix to use for output files */
    double thickness;				/* thickness of mesh, world coords */
@@ -260,11 +260,11 @@ int main(int argc,char **argv) {
          viewp.y = atof(argv[++i]);
          viewp.z = atof(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else if (strncmp(argv[i], "-layers", 2) == 0) {
          num_layers = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-prefix", 3) == 0) {
-         out_prefix = (char*)malloc(255*sizeof(char));
+         out_prefix = (char*)malloc(MAX_FN_LEN*sizeof(char));
          strcpy(out_prefix,argv[++i]);
       } else if (strncmp(argv[i], "-n", 2) == 0) {
          force_num_threads = atoi(argv[++i]);
@@ -281,7 +281,7 @@ int main(int argc,char **argv) {
 
    /* If asking for multiple images, and no prefix is present, assign a default here */
    if (!out_prefix && (num_layers > 1 || do6 || do19 || do76)) {
-      out_prefix = (char*)malloc(255*sizeof(char));
+      out_prefix = (char*)malloc(MAX_FN_LEN*sizeof(char));
       strcpy(out_prefix,"out");
    }
 
@@ -292,7 +292,7 @@ int main(int argc,char **argv) {
       for (int i=0; i<6; i++) {
        if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
-         char new_prefix[255];
+         char new_prefix[MAX_FN_LEN];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
          fprintf(stderr,"\nRendering number %d of %d to %s\n", i, 6, new_prefix);
          // set the viewpoint
@@ -308,7 +308,7 @@ int main(int argc,char **argv) {
       for (int i=0; i<19; i++) {
        if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
-         char new_prefix[255];
+         char new_prefix[MAX_FN_LEN];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
          fprintf(stderr,"\nRendering number %d of %d to %s\n", i, 19, new_prefix);
          // set the viewpoint
@@ -324,7 +324,7 @@ int main(int argc,char **argv) {
       for (int i=0; i<76; i++) {
        if (this_view == -1 || i == this_view) {
          // append an index to the output prefix
-         char new_prefix[255];
+         char new_prefix[MAX_FN_LEN];
          sprintf(new_prefix, "%s_v%02d", out_prefix, i);
          fprintf(stderr,"\nRendering number %d of %d to %s\n", i, 76, new_prefix);
          // set the viewpoint
@@ -352,7 +352,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[255],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockxray */
    static char **cpp, *help_message[] =

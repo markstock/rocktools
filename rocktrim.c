@@ -39,7 +39,7 @@ norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
 double find_area(tri_pointer);
-int Usage(char[80],int);
+int Usage(char[MAX_FN_LEN],int);
 
 int main(int argc,char **argv) {
 
@@ -74,10 +74,10 @@ int main(int argc,char **argv) {
    int use_z_max = 0;
    int use_a_min = 0;
    int vn1,vn2,vn3;
-   char infile[80];		/* name of input file */
+   char infile[MAX_FN_LEN];		/* name of input file */
    char extension[4];		/* filename extension if infile */
    char output_string[4] = "raw"; /* format extension for the output */
-   char progname[80];		/* name of binary executable */
+   char progname[MAX_FN_LEN];		/* name of binary executable */
    tri_pointer the_tri,ttri1,ttri2;
    node_ptr the_nodes[3],tnode1,tnode2;
    FILE *ifp;
@@ -115,7 +115,7 @@ int main(int argc,char **argv) {
       } else if (strncmp(argv[i], "-s", 2) == 0) {
          scheme = 3;
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_string,argv[i]+2,4);
+         strncpy(output_string,argv[i]+2,3);
       } else if (strncmp(argv[i], "-ma", 3) == 0) {
          a_min = atof(argv[++i]);
          use_a_min = 1;
@@ -128,7 +128,7 @@ int main(int argc,char **argv) {
 
 
    /* Determine the input file format from the .XXX extension, and read it */
-   strncpy(extension,infile+strlen(infile)-3,4);
+   strncpy(extension,infile+strlen(infile)-3,3);
    if (strncmp(extension, "raw", 3) == 0)
       input_format = 1;
    else if (strncmp(extension, "tin", 1) == 0)
@@ -484,7 +484,7 @@ int trim_tri(FILE *out,int output_format,tri_pointer the_tri,
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rocktrim */
    static char **cpp, *help_message[] =

@@ -63,7 +63,7 @@ tri_pointer read_input(char infile[MAX_FN_LEN],int invert,tri_pointer tri_head) 
    tri_pointer new_tri_head;	/* the pointer to the first triangle */
 
    /* Determine the input file format from the .XXX extension, and read it */
-   strncpy(extension,infile+strlen(infile)-3,4);
+   strncpy(extension,infile+strlen(infile)-3,3);
    if (strncmp(extension, "raw", 3) == 0)
       new_tri_head = read_raw(infile,tri_head);
    else if (strncmp(extension, "obj", 3) == 0)

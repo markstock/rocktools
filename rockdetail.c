@@ -71,7 +71,7 @@ int force_sphere = FALSE;	// force the all points to be the same radius from the
 double sphere_rad = -1.;	// this is the radius; if negative, compute the radius
 
 
-int Usage(char [80],int );
+int Usage(char [MAX_FN_LEN],int );
 extern tri_pointer split_tri(int,tri_pointer);
 extern tri_pointer split_tri_hex(int,tri_pointer);
 extern tri_pointer split_tri_5(int,tri_pointer);
@@ -98,8 +98,8 @@ int main(int argc,char **argv) {
    int rand_seed = 1;				/* seed for the random number generator */
    //int num_wrote = 0;				/* number of triangles written out */
    double area;
-   char infile[80];				/* name of input file */
-   char progname[80];				/* name of binary executable */
+   char infile[MAX_FN_LEN];				/* name of input file */
+   char progname[MAX_FN_LEN];				/* name of binary executable */
    char output_format[4];			/* file format extension for output */
    tri_pointer tri_head = NULL;
    tri_pointer curr = NULL;
@@ -152,7 +152,7 @@ int main(int argc,char **argv) {
       } else if (strncmp(argv[i], "-se", 3) == 0) {
          rand_seed = atoi(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else if (strncmp(argv[i], "-3", 2) == 0) {
          use_hex_splitting = TRUE;
       } else if (strncmp(argv[i], "-4", 2) == 0) {
@@ -230,7 +230,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockdetail */
    static char **cpp, *help_message[] =
