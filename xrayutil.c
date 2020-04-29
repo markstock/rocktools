@@ -46,6 +46,14 @@
 png_byte** allocate_2d_array_pb(int,int,int);
 int write_png_image(png_byte**,int,int,int,char*,int,int);
 
+// define the possible rendering types
+typedef enum render_type {
+   surface,     // default is surface only
+   volume,      // interior volume along pixel column
+   first,       // first hit along pixel column
+   last         // last hit along column
+} RENDER;
+
 /*
  * Write a PGM image of the xray of the shell of a mesh
  *
@@ -57,7 +65,7 @@ int write_png_image(png_byte**,int,int,int,char*,int,int);
  */
 int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb, int size,
       double thick, int square, double border, int thisq, double peak_crop, double gamma,
-      int write_hibit, int is_solid, int is_fade, int num_images, char* prefix, char* output_format,
+      int write_hibit, RENDER rtype, int is_fade, int num_images, char* prefix, char* output_format,
       int force_num_threads) {
 
    int write_pgm;			// write a PGM file
@@ -99,9 +107,15 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
 
    // first, find the three basis vectors: screen-x, screen-y, z (vz)
    vz = norm(vz);
-   vy.x = 0.0;
-   vy.y = 0.0;
-   vy.z = 1.0;
+   if (vz.z > 0.99999 || vz.z < -0.99999) {
+      vy.x = 0.0;
+      vy.y = 1.0;
+      vy.z = 0.0;
+   } else {
+      vy.x = 0.0;
+      vy.y = 0.0;
+      vy.z = 1.0;
+   }
    // one way: -dz was the view "from" vector
    vx = norm(cross(vy,vz));
    vy = norm(cross(vz,vx));
@@ -232,7 +246,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       num_norm_layers = 1;
       thick = 0.0;
    }
-   if (is_solid) {
+   if (rtype != surface) {
       num_norm_layers = 1;
       thick = 0.0;
    }
@@ -245,11 +259,18 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
    }
    
 
-   // zero out the arrays
-   for (int inum=0; inum<num_images; inum++)
-      for (int i=0; i<xres; i++)
-        for (int j=0; j<yres; j++)
-           a[inum][i][j] = 0.0;
+   // appropriately initialize the array(s)
+   if (rtype == last) {
+      for (int inum=0; inum<num_images; inum++)
+         for (int i=0; i<xres; i++)
+           for (int j=0; j<yres; j++)
+              a[inum][i][j] = 9.9e+9;
+   } else {
+      for (int inum=0; inum<num_images; inum++)
+         for (int i=0; i<xres; i++)
+           for (int j=0; j<yres; j++)
+              a[inum][i][j] = 0.0;
+   }
 
 
    // then, loop through all elements, writing to the image
@@ -400,7 +421,8 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
          continue;
       }
       double sidelen = sqrt(area);
-      if (is_solid) sidelen *= 3.;
+      // volumes need more resolution
+      if (rtype == volume) sidelen *= 3.;
 
       //if (area < min_area) {
          //fprintf(stderr,"\nmin area %g",area);
@@ -418,7 +440,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       //    thickness of the triangular prism
       VEC trinorm = find_normal(n0->loc,n1->loc,n2->loc);
       // scale the normal vector to half the thickness
-      if (!is_solid) { 
+      if (rtype == surface) { 
          trinorm.x *= 0.5*thick;
          trinorm.y *= 0.5*thick;
          trinorm.z *= 0.5*thick;
@@ -429,7 +451,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
 
       // base density is a scaled area measure
       double factor = (1.e+5)*area/(double)(subdivisions*subdivisions)/(dd*dd);
-      if (is_solid) { 
+      if (rtype == volume) { 
          // flip if triangle points away from viewer
          // We're using the absolute area of the tri, so it's OK.
          factor *= dot(trinorm,vz);
@@ -530,12 +552,44 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
             // write a little blob at each point, use area weighting
             if (num_images == 1) {
 
+              if (rtype == first) {
+               double rtemp = zpos;
+               if (xloc > -1 && xloc < xres) {
+                  if (yloc > -1 && yloc < yres)
+                     if (rtemp > a[0][xloc][yloc]) a[0][xloc][yloc] = rtemp;
+                  if (yloc > -2 && yloc+1 < yres)
+                     if (rtemp > a[0][xloc][yloc+1]) a[0][xloc][yloc+1] = rtemp;
+               }
+               if (xloc > -2 && xloc+1 < xres) {
+                  if (yloc > -1 && yloc < yres)
+                     if (rtemp > a[0][xloc+1][yloc]) a[0][xloc+1][yloc] = rtemp;
+                  if (yloc > -2 && yloc+1 < yres)
+                     if (rtemp > a[0][xloc+1][yloc+1]) a[0][xloc+1][yloc+1] = rtemp;
+               }
+
+              } else if (rtype == last) {
+               double rtemp = zpos;
+               if (xloc > -1 && xloc < xres) {
+                  if (yloc > -1 && yloc < yres)
+                     if (rtemp < a[0][xloc][yloc]) a[0][xloc][yloc] = rtemp;
+                  if (yloc > -2 && yloc+1 < yres)
+                     if (rtemp < a[0][xloc][yloc+1]) a[0][xloc][yloc+1] = rtemp;
+               }
+               if (xloc > -2 && xloc+1 < xres) {
+                  if (yloc > -1 && yloc < yres)
+                     if (rtemp < a[0][xloc+1][yloc]) a[0][xloc+1][yloc] = rtemp;
+                  if (yloc > -2 && yloc+1 < yres)
+                     if (rtemp < a[0][xloc+1][yloc+1]) a[0][xloc+1][yloc+1] = rtemp;
+               }
+
+              } else {
+
                // finally, set the density of this point
                double rfactor = factor;
-               if (is_solid && is_fade) {
+               if (rtype == volume && is_fade) {
                   // zpos is always positive---it's the raw distance from the zmin plane
                   rfactor *= pow(zpos,2);
-               } else if (is_solid || is_fade) {
+               } else if (rtype == volume || is_fade) {
                   rfactor *= zpos;
                }
 
@@ -553,6 +607,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
                   if (yloc > -2 && yloc+1 < yres)
                      a[0][xloc+1][yloc+1] += rtemp*(ypos);
                }
+              }
 
             } else {
                // multiple layers: we need to be careful with solid images
@@ -570,7 +625,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
                double rtemp = 0.0;
                double stemp = 0.0;
 
-               if (is_solid) {
+               if (rtype == volume) {
 
                   // NOT DONE!!!
                   // must loop over lots of layers
@@ -697,7 +752,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
 
       // peak cropping is now a command-line option
       fprintf(stderr,", maxval is %g",maxval);
-      if (!is_solid) {
+      if (rtype == surface) {
          maxval *= peak_crop;
          fprintf(stderr,", peak-cropped maxval is %g",maxval);
       }
@@ -769,7 +824,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       }
 
       fprintf(stderr,", maxval is %g",maxval);
-      if (!is_solid) {
+      if (rtype == surface) {
          maxval *= peak_crop;
          fprintf(stderr,", peak-cropped maxval is %g",maxval);
       }

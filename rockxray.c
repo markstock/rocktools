@@ -5,7 +5,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-17  Mark J. Stock
+ * Copyright (C) 2004-20  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -145,12 +145,21 @@ static VEC seventysix_views[] = {
   {-6.7940909e-01,-4.2677217e-01,5.9688257e-01},
   {-4.1250361e-01,-5.9563265e-01,6.8924780e-01} };
 
+// define the possible rendering types
+typedef enum render_type {
+   surface,     // default is surface only
+   volume,      // interior volume along pixel column
+   first,       // first hit along pixel column
+   last         // last hit along column
+} RENDER;
+
 extern int write_xray(tri_pointer,VEC,double*,double*,double*,int,double,int,double,int,double,double,int,int,int,int,char*,char*,int);
 int Usage(char[255],int);
 
 int main(int argc,char **argv) {
 
-   int i,do_volume,do_fade,max_size,force_square,quality,write_hibit;
+   RENDER rtype;
+   int i,do_fade,max_size,force_square,quality,write_hibit;
    int force_num_threads = -1;
    int num_layers;				// how many layers to render to?
    int do6 = FALSE;
@@ -177,7 +186,7 @@ int main(int argc,char **argv) {
    num_layers = 1;
    quality = 0;					// 0 is default, 1 higher, 2 very high
    write_hibit = FALSE;
-   do_volume = FALSE;
+   rtype = surface;
    do_fade = FALSE;
    border = 0.1;
    peak_crop = 0.8;
@@ -220,13 +229,17 @@ int main(int argc,char **argv) {
          zb[1] = atof(argv[++i]);
          zb[2] = atof(argv[++i]);
       } else if (strncmp(argv[i], "-s", 2) == 0) {
-         do_volume = FALSE;
+         rtype = surface;
       } else if (strncmp(argv[i], "-fade", 3) == 0) {
          do_fade = TRUE;
       } else if (strncmp(argv[i], "-f", 2) == 0) {
          force_square = TRUE;
+      } else if (strncmp(argv[i], "-top", 4) == 0) {
+         rtype = first;
+      } else if (strncmp(argv[i], "-bot", 4) == 0) {
+         rtype = last;
       } else if (strncmp(argv[i], "-v", 2) == 0) {
-         do_volume = TRUE;
+         rtype = volume;
       } else if (strncmp(argv[i], "-qqq", 4) == 0) {
          quality = 3;
       } else if (strncmp(argv[i], "-qq", 3) == 0) {
@@ -299,7 +312,7 @@ int main(int argc,char **argv) {
          viewp = six_views[i];
          // render the image
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
-                           border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
+                           border,quality,peak_crop,gamma,write_hibit,rtype,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
        }
       }
@@ -315,7 +328,7 @@ int main(int argc,char **argv) {
          viewp = nineteen_views[i];
          // render the image
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
-                           border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
+                           border,quality,peak_crop,gamma,write_hibit,rtype,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
        }
       }
@@ -331,7 +344,7 @@ int main(int argc,char **argv) {
          viewp = seventysix_views[i];
          // render the image
          (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
-                           border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
+                           border,quality,peak_crop,gamma,write_hibit,rtype,do_fade,
                            num_layers,new_prefix,output_format,force_num_threads);
        }
       }
@@ -339,7 +352,7 @@ int main(int argc,char **argv) {
    } else {
       /* Just write one image to stdout */
       (void) write_xray(tri_head,viewp,xb,yb,zb,max_size,thickness,force_square,
-                        border,quality,peak_crop,gamma,write_hibit,do_volume,do_fade,
+                        border,quality,peak_crop,gamma,write_hibit,rtype,do_fade,
                         num_layers,out_prefix,output_format,force_num_threads);
    }
 
@@ -389,6 +402,10 @@ int Usage(char progname[255],int status) {
        "   -s          image only the shell of the mesh (default behavior)         ",
        "                                                                           ",
        "   -v          image the volume of the mesh                                ",
+       "                                                                           ",
+       "   -top        image the top surface of the mesh                           ",
+       "                                                                           ",
+       "   -bot        image the bottom surface of the mesh                        ",
        "                                                                           ",
        "   -fade       fade intensity from front to back                           ",
        "                                                                           ",
