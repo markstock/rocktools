@@ -84,7 +84,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
    node_ptr this_node;
 
    int debug_write = FALSE;
-   FILE *debug_out;
+   FILE *debug_out = stderr;
 
    if (debug_write)
      debug_out = fopen("temp", "w");
@@ -766,12 +766,12 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
             if (!prefix) {
                ofp = stdout;
             } else {
-               char file_name[255];
+               char file_name[MAX_FN_LEN];
                sprintf(file_name, "%s.pgm", prefix);
                ofp = fopen(file_name, "wb");
             }
          } else {
-            char file_name[255];
+            char file_name[MAX_FN_LEN];
             sprintf(file_name, "%s_s%02d.pgm", prefix, inum);
             ofp = fopen(file_name, "wb");
          }
@@ -899,14 +899,14 @@ int write_png_image(png_byte** image,int xres,int yres,int depth,char *prefix,in
    png_infop info_ptr;
    //png_colorp palette;
    //png_voidp user_error_ptr;
-   char file_name[255];
+   char file_name[MAX_FN_LEN];
 
    // if we were given a prefix, write to a file instead of stdout
    if (num_images == 1) {
       if (!prefix) {
          fp = stdout;
       } else {
-         char file_name[255];
+         char file_name[MAX_FN_LEN];
          sprintf(file_name, "%s.png", prefix);
          fp = fopen(file_name, "wb");
       }

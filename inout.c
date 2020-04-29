@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2002-4,6,13-15  Mark J. Stock
+ * Copyright (C) 1999,2002-4,6,13-15,20  Mark J. Stock
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,6 +47,7 @@ int write_seg(tri_pointer, int, char**);
 int write_rad(tri_pointer, int);
 int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
+int write_wrl(tri_pointer, int, int, char**);
 
 int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,float*,int*,int*);
 int get_tri(FILE*,int,tri_pointer);
@@ -63,7 +64,7 @@ tri_pointer read_input(char infile[MAX_FN_LEN],int invert,tri_pointer tri_head) 
    tri_pointer new_tri_head;	/* the pointer to the first triangle */
 
    /* Determine the input file format from the .XXX extension, and read it */
-   strncpy(extension,infile+strlen(infile)-3,4);
+   strncpy(extension,infile+strlen(infile)-3,3);
    if (strncmp(extension, "raw", 3) == 0)
       new_tri_head = read_raw(infile,tri_head);
    else if (strncmp(extension, "obj", 3) == 0)
@@ -1042,6 +1043,8 @@ int write_output(tri_pointer head, char format[4], int keep_norms, int argc, cha
       num_wrote = write_rib(head, keep_norms);
    else if (strncmp(format, "seg", 2) == 0)
       num_wrote = write_seg(head, argc, argv);
+   else if (strncmp(format, "wrl", 1) == 0)
+      num_wrote = write_wrl(head, keep_norms, argc, argv);
    else {
       fprintf(stderr,"No output file format or unsupported file format given, using raw\n");
       num_wrote = write_raw(head, keep_norms);
@@ -1241,6 +1244,196 @@ int write_obj(tri_pointer head, int keep_norms, int argc, char **argv) {
    }
 
    fprintf(stderr,"Wrote Wavefront ASCII information, %d triangles\n",tri_ct);
+   return tri_ct;
+}
+
+
+/*
+ * Write out a VRML .wrl file
+ */
+int write_wrl(tri_pointer head, int keep_norms, int argc, char **argv) {
+
+   int tri_ct = 0;
+   int node_ct = 0;
+   //int norm_ct = 0;
+   int have_norms = 0;
+   int text_ct = 0;
+   int have_texs = 0;
+   tri_pointer curr_tri = head;
+
+   // set all node and norm indexes to -1
+   curr_tri = head;
+   while (curr_tri) {
+      // fprintf(stderr,"tri %d\n",curr_tri->index); fflush(stderr);
+      // for (i=0; i<3; i++) fprintf(stderr,"  node %d\n",curr_tri->node[i]->index); fflush(stderr);
+      for (int i=0; i<3; i++) curr_tri->node[i]->index = -1;
+      for (int i=0; i<3; i++) if (curr_tri->norm[i] != NULL) {
+         curr_tri->norm[i]->index = -1;
+         have_norms = 1;
+      }
+      for (int i=0; i<3; i++) if (curr_tri->texture[i] != NULL) {
+         curr_tri->texture[i]->index = -1;
+         have_texs = 1;
+      }
+      curr_tri = curr_tri->next_tri;
+   }
+
+   // begin writing with the headers
+
+   fprintf(stderr,"Writing triangles in VRML 2.0 .wrl format to stdout\n");
+   fflush(stderr);
+   fprintf(stdout,"#VRML V2.0 utf8\n\n");
+   fprintf(stdout,"# Triangle mesh written from rocktools\n#");
+   for (int i=0; i<argc; i++) {
+      fprintf(stdout," %s",argv[i]);
+   }
+   fprintf(stdout,"\n\n");
+
+   fprintf(stdout,"NavigationInfo {\n");
+   fprintf(stdout,"type [ \"EXAMINE\", \"ANY\" ]\n");
+   fprintf(stdout,"}\n\n");
+
+   fprintf(stdout,"Transform {\n");
+   fprintf(stdout,"scale 1 1 1\n");
+   fprintf(stdout,"translation 0 0 0\n");
+   fprintf(stdout,"children [\n");
+   fprintf(stdout,"Shape {\n");
+   fprintf(stdout,"geometry IndexedFaceSet {\n");
+   fprintf(stdout,"creaseAngle .5\n");
+   fprintf(stdout,"solid FALSE\n");
+
+   // march through all triangles, writing nodes and setting indexes as they appear
+   fprintf(stdout,"coord Coordinate {\n");
+   fprintf(stdout,"point [\n");
+   curr_tri = head;
+   while (curr_tri) {
+      for (int i=0; i<3; i++) {
+         if (curr_tri->node[i]->index == -1) {
+            // this node has not appeared, write it!
+            if (node_ct!=0) fprintf(stdout,", ");
+            fprintf(stdout,"%g %g %g",curr_tri->node[i]->loc.x,
+                                      curr_tri->node[i]->loc.y,
+                                      curr_tri->node[i]->loc.z);
+            // and set the index
+            curr_tri->node[i]->index = node_ct++;
+         }
+      }
+      curr_tri = curr_tri->next_tri;
+   }
+   fprintf(stdout,"\n]\n}\n");
+
+   // write the tri node indicies
+   fprintf(stdout,"coordIndex [\n");
+   curr_tri = head;
+   while (curr_tri) {
+      if (tri_ct!=0) fprintf(stdout,", ");
+      fprintf(stdout,"%d,%d,%d,-1",curr_tri->node[0]->index,
+                                   curr_tri->node[1]->index,
+                                   curr_tri->node[2]->index);
+      tri_ct++;
+      curr_tri = curr_tri->next_tri;
+   }
+   fprintf(stdout,"\n]\n");
+
+   // march again through triangles, writing norms as they appear
+   if (have_norms) {
+   /*
+   fprintf(stdout,"texCoord TextureCoordinate {\n");
+   fprintf(stdout,"point [\n");
+   curr_tri = head;
+   while (curr_tri) {
+      // write any valid normals
+      if (keep_norms) {
+         // write the unique norms
+         for (int i=0; i<3; i++) {
+            if (curr_tri->norm[i] != NULL) {
+               if (curr_tri->norm[i]->index == -1 &&
+                  !isnan(curr_tri->norm[i]->norm.x) &&
+                  !isnan(curr_tri->norm[i]->norm.y) &&
+                  !isnan(curr_tri->norm[i]->norm.z)) {
+                  // this node has not appeared and is not nan, write it!
+                  if (norm_ct!=0) fprintf(stdout,", ");
+                  fprintf(stdout,"%g %g %g\n",curr_tri->norm[i]->norm.x,
+                                              curr_tri->norm[i]->norm.y,
+                                              curr_tri->norm[i]->norm.z);
+                  // and set the index
+                  curr_tri->norm[i]->index = norm_ct++;
+               }
+            }
+         }
+      } else {
+         for (int i=0; i<3; i++) free(curr_tri->norm[i]);
+      }
+      curr_tri = curr_tri->next_tri;
+   }
+   fprintf(stdout,"\n]\n");
+   */
+   }
+
+   // march again through triangles, writing norms as they appear
+   if (have_texs) {
+      fprintf(stdout,"texCoord TextureCoordinate {\n");
+      fprintf(stdout,"point [\n");
+      curr_tri = head;
+      while (curr_tri) {
+         // write any valid texture coordinates
+         // write the unique norms
+         for (int i=0; i<3; i++) {
+            if (curr_tri->texture[i] != NULL) {
+               if (curr_tri->texture[i]->index == -1 &&
+                  !isnan(curr_tri->texture[i]->uv.x) &&
+                  !isnan(curr_tri->texture[i]->uv.y)) {
+                  // this node has not appeared and is not nan, write it!
+                  if (text_ct!=0) fprintf(stdout," ");
+                  fprintf(stdout,"%g %g",curr_tri->texture[i]->uv.x,
+                                         curr_tri->texture[i]->uv.y);
+                  // and set the index
+                  curr_tri->texture[i]->index = text_ct++;
+               }
+            }
+         }
+         curr_tri = curr_tri->next_tri;
+      }
+      fprintf(stdout,"\n]\n}\n");
+
+      // if we wrote any texture coords, write the texture indices now
+      tri_ct = 0;
+      fprintf(stdout,"texCoordIndex [\n");
+
+      curr_tri = head;
+      while (curr_tri) {
+         if (tri_ct!=0) fprintf(stdout," ");
+         for (int i=0; i<3; i++) {
+            if (curr_tri->texture[i] != NULL) {
+               fprintf(stdout," %d",curr_tri->texture[i]->index);
+            } else {
+               fprintf(stdout," -1");
+            }
+         }
+         fprintf(stdout," -1");
+         tri_ct++;
+         curr_tri = curr_tri->next_tri;
+      }
+      fprintf(stdout,"\n]\n");
+   }
+
+   fprintf(stdout,"}\n");
+   fprintf(stdout,"appearance Appearance {\n");
+   fprintf(stdout,"material Material {\n");
+   fprintf(stdout,"ambientIntensity 0.2\n");
+   fprintf(stdout,"diffuseColor 0.9 0.9 0.9\n");
+   fprintf(stdout,"specularColor .1 .1 .1\n");
+   fprintf(stdout,"shininess .5\n");
+   fprintf(stdout,"}\n");
+   if (have_texs) {
+      fprintf(stdout,"texture ImageTexture { url \"TEXTURE.png\" }\n");
+   }
+   fprintf(stdout,"}\n");
+   fprintf(stdout,"}\n");
+   fprintf(stdout,"]\n");
+   fprintf(stdout,"}\n");
+
+   fprintf(stderr,"Wrote VRML ASCII information, %d triangles\n",tri_ct);
    return tri_ct;
 }
 

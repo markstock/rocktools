@@ -38,7 +38,7 @@ norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
-int Usage(char[80],int);
+int Usage(char[MAX_FN_LEN],int);
 int write_seg_slice(FILE*, char*, double, node_ptr, node_ptr, VEC*, VEC*);
 
 
@@ -62,12 +62,12 @@ int main(int argc,char **argv) {
       y,
       z } use_dir = pick_shortest;
    int vn1,vn2,vn3;
-   char infile[255];		/* name of input file */
+   char infile[MAX_FN_LEN];		/* name of input file */
    char extension[4];		/* filename extension if infile */
    char output_format[4] = "raw"; /* format extension for the output */
-   //char output_root[255];	/* filename root for the output */
-   //char output_1[255];		/* filename for the output */
-   char progname[255];		/* name of binary executable */
+   //char output_root[MAX_FN_LEN];	/* filename root for the output */
+   //char output_1[MAX_FN_LEN];		/* filename for the output */
+   char progname[MAX_FN_LEN];		/* name of binary executable */
    //char normal_string[512];
    tri_pointer curr,tri_head;
    node_ptr tnode1,tnode2;
@@ -96,13 +96,13 @@ int main(int argc,char **argv) {
       } else if (strncmp(argv[i], "-r", 2) == 0) {
          line_width = atof(argv[++i]);
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else
          (void) Usage(progname,0);
    }
 
    /* Determine the input file format from the .XXX extension, and read it */
-   strncpy(extension,infile+strlen(infile)-3,4);
+   strncpy(extension,infile+strlen(infile)-3,3);
 
    /* Determine and set the output format key from the string */
    if (strncmp(output_format, "raw", 3) != 0 &&
@@ -516,7 +516,7 @@ void find_arc_intersection (int dim, double thresh, VEC x1, VEC n1,
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockslice */
    static char **cpp, *help_message[] =

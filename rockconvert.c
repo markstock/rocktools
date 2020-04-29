@@ -42,14 +42,14 @@ int num_tri = 0;
 void rescale_nodes (VEC);
 void translate_nodes (VEC);
 void remap_to_cylinder ();
-int Usage(char[255],int);
+int Usage(char[MAX_FN_LEN],int);
 
 
 int main(int argc,char **argv) {
 
    int i;
-   char infile[255];		/* name of input file */
-   char progname[255];		/* name of binary executable */
+   char infile[MAX_FN_LEN];		/* name of input file */
+   char progname[MAX_FN_LEN];		/* name of binary executable */
    char output_format[4];	/* file format extension for output */
    tri_pointer tri_head = NULL;
    int keep_normals = TRUE;
@@ -69,7 +69,7 @@ int main(int argc,char **argv) {
    (void) strcpy(infile,argv[1]);
    for (i=2; i<argc; i++) {
       if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else if (strncmp(argv[i], "-i", 2) == 0) {
          keep_normals = FALSE;
       } else if (strncmp(argv[i], "-s", 2) == 0) {
@@ -202,7 +202,7 @@ void remap_to_cylinder () {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[255],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockconvert */
    static char **cpp, *help_message[] =

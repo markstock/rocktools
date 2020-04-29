@@ -39,7 +39,7 @@ text_ptr text_head = NULL;
 int num_tri = 0;
 
 void rescale_nodes (double);
-int Usage(char[160],int);
+int Usage(char[MAX_FN_LEN],int);
 
 extern float** read_png (char*, float, float, int*, int*);
 extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int, double, int, int, double, double, int);
@@ -47,8 +47,8 @@ extern tri_pointer generate_heightmesh (tri_pointer, float**, int, int, int, int
 int main(int argc,char **argv) {
 
    int i,j;
-   char infile[160];		/* name of input file */
-   char progname[160];		/* name of binary executable */
+   char infile[MAX_FN_LEN];		/* name of input file */
+   char progname[MAX_FN_LEN];		/* name of binary executable */
    char output_format[4];	/* file format extension for output */
    tri_pointer tri_head = NULL;
    int nx = -1;
@@ -78,7 +78,7 @@ int main(int argc,char **argv) {
    for (i=2; i<argc; i++) {
       if (strncmp(argv[i], "-o", 2) == 0) {
          // specify output format (Shapeways takes obj now)
-         strncpy(output_format,argv[i]+2,4);
+         strncpy(output_format,argv[i]+2,3);
       } else if (strncmp(argv[i], "-finalscale", 2) == 0) {
          // after all geom is created, scale up to millimeters
          if (argc > i) {
@@ -255,7 +255,7 @@ void rescale_nodes (double scale) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockpng */
    static char **cpp, *help_message[] =

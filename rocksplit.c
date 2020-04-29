@@ -38,7 +38,7 @@ norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
 void find_arc_intersection (int, double, VEC, VEC, VEC, VEC, VEC*, VEC*);
-int Usage(char[80],int);
+int Usage(char[MAX_FN_LEN],int);
 
 
 int main(int argc,char **argv) {
@@ -68,15 +68,15 @@ int main(int argc,char **argv) {
       z } use_dir = pick_longest;
    int vn1,vn2,vn3;
    int use_given_root = FALSE;
-   char infile[80];		/* name of input file */
+   char infile[MAX_FN_LEN];		/* name of input file */
    char extension[4];		/* filename extension if infile */
    //char axis_char1 = 'x';
    //char axis_char2 = 'X';
    char output_string[4] = "raw"; /* format extension for the output */
-   char output_root[80];	/* filename root for the output */
-   char output_1[80];		/* filename for the output */
-   char output_2[80];		/* filename for the output */
-   char progname[80];		/* name of binary executable */
+   char output_root[MAX_FN_LEN-5];	/* filename root for the output */
+   char output_1[MAX_FN_LEN];		/* filename for the output */
+   char output_2[MAX_FN_LEN];		/* filename for the output */
+   char progname[MAX_FN_LEN];		/* name of binary executable */
    tri_pointer the_tri,ttri1,ttri2;
    node_ptr the_nodes[3],tnode1,tnode2;
    VEC tnorm1,tnorm2;
@@ -104,7 +104,7 @@ int main(int argc,char **argv) {
       } else if (strncmp(argv[i], "-l", 2) == 0) {
          use_dir = pick_longest;
       } else if (strncmp(argv[i], "-o", 2) == 0) {
-         strncpy(output_string,argv[i]+2,4);
+         strncpy(output_string,argv[i]+2,3);
       } else if (strncmp(argv[i], "-root", 2) == 0) {
          strcpy(output_root,argv[++i]);
          use_given_root = TRUE;
@@ -114,13 +114,13 @@ int main(int argc,char **argv) {
 
    // if an output filename root has not been given, determine it
    if (!use_given_root) {
-      strncpy(output_root,infile,strlen(infile)-4);
+      strncpy(output_root,infile,strlen(output_root));
       output_root[strlen(infile)-4] = '\0';
       //printf("output root is (%s)\n",output_root);
    }
 
    /* Determine the input file format from the .XXX extension, and read it */
-   strncpy(extension,infile+strlen(infile)-3,4);
+   strncpy(extension,infile+strlen(infile)-3,3);
    if (strncmp(extension, "raw", 3) == 0)
       input_format = 1;
    else if (strncmp(extension, "tin", 1) == 0)
@@ -684,7 +684,7 @@ void find_arc_intersection (int dim, double thresh, VEC x1, VEC n1,
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rocksplit */
    static char **cpp, *help_message[] =

@@ -37,7 +37,7 @@ node_ptr node_head = NULL;
 norm_ptr norm_head = NULL;
 text_ptr text_head = NULL;
 
-int Usage(char[80],int);
+int Usage(char[MAX_FN_LEN],int);
 extern int read_files_for_nodes (int,char**);
 extern int create_cubic_nodes (int);
 extern int create_gaussian_nodes (int);
@@ -60,7 +60,7 @@ int main(int argc,char **argv) {
    int num_walk = 0;			// number of random walk nodes
    int tot_nodes;
    double roundness = 0.0;		// relative roundness, 1.0 = average
-   char progname[80];			// name of binary executable
+   char progname[MAX_FN_LEN];			// name of binary executable
    char output_format[4];		// file format extension for output
    int num_its;
    tri_pointer tri_head = NULL;
@@ -97,7 +97,7 @@ int main(int argc,char **argv) {
          } else if (strncmp(argv[i], "-r", 2) == 0) {
             roundness = atof(argv[++i]);
          } else if (strncmp(argv[i], "-o", 2) == 0) {
-            strncpy(output_format,argv[i]+2,4);
+            strncpy(output_format,argv[i]+2,3);
          } else if (strncmp(argv[i], "-", 1) == 0) {
             (void) Usage(progname,0);
          }
@@ -160,7 +160,7 @@ int main(int argc,char **argv) {
  * This function writes basic usage information to stderr,
  * and then quits. Too bad.
  */
-int Usage(char progname[80],int status) {
+int Usage(char progname[MAX_FN_LEN],int status) {
 
    /* Usage for rockcreate */
    static char **cpp, *help_message[] =
