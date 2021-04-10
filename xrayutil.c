@@ -6,7 +6,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-15  Mark J. Stock
+ * Copyright (C) 2004-15,21  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +44,7 @@
 //#define USE_GAUSSIAN
 
 png_byte** allocate_2d_array_pb(int,int,int);
-int write_png_image(png_byte**,int,int,int,char*,int,int);
+int write_png_image(png_byte**,int,int,int,double,char*,int,int);
 
 // define the possible rendering types
 typedef enum render_type {
@@ -636,58 +636,66 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
 
                   if (xloc > -1 && xloc < xres) {
                      rtemp = rfactor*(1.0-xpos);
-                     if (yloc > -1 && yloc < yres)
+                     if (yloc > -1 && yloc < yres) {
                         stemp = rtemp*(1.0-ypos);
                         a[zloc+1][xloc][yloc]     += stemp*zsq;
                         a[zloc][xloc][yloc]       += stemp*zinv;
                         for (int inum=zloc-1; inum>-1; inum--)
                            a[inum][xloc][yloc]    += stemp*2.0;
-                     if (yloc > -2 && yloc+1 < yres)
+                     }
+                     if (yloc > -2 && yloc+1 < yres) {
                         stemp = rtemp*(ypos);
                         a[zloc+1][xloc][yloc+1]   += stemp*zsq;
                         a[zloc][xloc][yloc+1]     += stemp*zinv;
                         for (int inum=zloc-1; inum>-1; inum--)
                            a[inum][xloc][yloc+1]  += stemp*2.0;
+                     }
                   }
                   if (xloc > -2 && xloc+1 < xres) {
                      rtemp = rfactor*(xpos);
-                     if (yloc > -1 && yloc < yres)
+                     if (yloc > -1 && yloc < yres) {
                         stemp = rtemp*(1.0-ypos);
                         a[zloc+1][xloc+1][yloc]   += stemp*zsq;
                         a[zloc][xloc+1][yloc]     += stemp*zinv;
                         for (int inum=zloc-1; inum>-1; inum--)
                            a[inum][xloc+1][yloc]  += stemp*2.0;
-                     if (yloc > -2 && yloc+1 < yres)
+                     }
+                     if (yloc > -2 && yloc+1 < yres) {
                         stemp = rtemp*(ypos);
                         a[zloc+1][xloc+1][yloc+1] += stemp*zsq;
                         a[zloc][xloc+1][yloc+1]   += stemp*zinv;
                         for (int inum=zloc-1; inum>-1; inum--)
                            a[inum][xloc+1][yloc+1]+= stemp*2.0;
+                     }
                   }
 
                } else {
 
                   if (xloc > -1 && xloc < xres) {
                      rtemp = rfactor*(1.0-xpos);
-                     if (yloc > -1 && yloc < yres)
+                     if (yloc > -1 && yloc < yres) {
                         stemp = rtemp*(1.0-ypos);
                         a[zloc][xloc][yloc]       += stemp*(1.0-zpos);
                         a[zloc+1][xloc][yloc]     += stemp*(zpos);
-                     if (yloc > -2 && yloc+1 < yres)
+                     }
+                     if (yloc > -2 && yloc+1 < yres) {
                         stemp = rtemp*(ypos);
                         a[zloc][xloc][yloc+1]     += stemp*(1.0-zpos);
                         a[zloc+1][xloc][yloc+1]   += stemp*(zpos);
+                     }
                   }
                   if (xloc > -2 && xloc+1 < xres) {
                      rtemp = rfactor*(xpos);
-                     if (yloc > -1 && yloc < yres)
+                     if (yloc > -1 && yloc < yres) {
                         stemp = rtemp*(1.0-ypos);
                         a[zloc][xloc+1][yloc]     += stemp*(1.0-zpos);
                         a[zloc+1][xloc+1][yloc]   += stemp*(zpos);
-                     if (yloc > -2 && yloc+1 < yres)
+                     }
+                     if (yloc > -2 && yloc+1 < yres) {
                         stemp = rtemp*(ypos);
                         a[zloc][xloc+1][yloc+1]   += stemp*(1.0-zpos);
                         a[zloc+1][xloc+1][yloc+1] += stemp*(zpos);
+                     }
                   }
 
                } // if not solid
@@ -843,7 +851,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
                   img[yres-1-j][2*i+1] = (png_byte)(printval%256);
                }
             }
-            write_png_image(img,yres,xres,16,prefix,inum,num_images);
+            write_png_image(img,yres,xres,16,gamma,prefix,inum,num_images);
          }
       } else {
          img = allocate_2d_array_pb(xres,yres,8);
@@ -856,7 +864,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
                   img[yres-1-j][i] = (png_byte)printval;
                }
             }
-            write_png_image(img,yres,xres,8,prefix,inum,num_images);
+            write_png_image(img,yres,xres,8,gamma,prefix,inum,num_images);
          }
       }
 
@@ -891,7 +899,7 @@ png_byte** allocate_2d_array_pb(int nx, int ny, int depth) {
  * write a png file
  */
 // int write_png_image(char *file_name,png_byte** image,int xres,int yres,int depth) {
-int write_png_image(png_byte** image,int xres,int yres,int depth,char *prefix,int img_num,int num_images) {
+int write_png_image(png_byte** image,int xres,int yres,int depth,double gamma,char *prefix,int img_num,int num_images) {
 
    png_uint_32 height,width;
    FILE *fp;
@@ -974,7 +982,7 @@ int write_png_image(png_byte** image,int xres,int yres,int depth,char *prefix,in
    /* Optional gamma chunk is strongly suggested if you have any guess
     * as to the correct gamma of the image.
     */
-   png_set_gAMA(png_ptr, info_ptr, 2.2);
+   png_set_gAMA(png_ptr, info_ptr, gamma);
 
    /* Write the file header information.  REQUIRED */
    png_write_info(png_ptr, info_ptr);
