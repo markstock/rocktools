@@ -6,7 +6,7 @@
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 1999,2004,2006,2008,2015 Mark J. Stock
+ * Copyright (C) 1999,2004,2006,2008,2015,2021 Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,17 +40,19 @@ text_ptr text_head = NULL;
 // this subroutine appears in this file
 int Usage(char[MAX_FN_LEN],int);
 
-// from inout.c
-//extern int find_mesh_stats(char*, VEC*, VEC*, int, VEC*, int*, int*);
-
+const char* nice_print (const float _x) {
+   char* out = "10.2";
+   return out;
+}
 
 int main(int argc,char **argv) {
 
    int doCM = FALSE;
+   int doNICE = FALSE;
    int num_nodes = 0;
    int num_tris = 0;
    VEC bmax,bmin;		// mesh bounds
-   VEC cm;			// center of mass
+   VEC cm;				// center of mass
    float volume;		// enclosed volume
    char infile[MAX_FN_LEN];		// name of input file
    char progname[MAX_FN_LEN];	// name of binary executable
@@ -63,6 +65,8 @@ int main(int argc,char **argv) {
    for (int i=2; i<argc; i++) {
       if (strncmp(argv[i], "-cm", 2) == 0) {
          doCM = TRUE;
+      } else if (strncmp(argv[i], "-nice", 2) == 0) {
+         doNICE = TRUE;
       } else {
          (void) Usage(progname,0);
       }
@@ -75,6 +79,18 @@ int main(int argc,char **argv) {
    fprintf(stdout,"nodes %d tris %d ",num_nodes,num_tris);
    fprintf(stdout,"x %g %g y %g %g z %g %g",bmin.x,bmax.x,bmin.y,bmax.y,bmin.z,bmax.z);
    if (doCM) fprintf(stdout," cm %g %g %g vol %g",cm.x,cm.y,cm.z,volume);
+   if (doNICE) {
+      const float xc = 0.1*(bmax.x-bmin.x);
+      const float yc = 0.1*(bmax.y-bmin.y);
+      const float zc = 0.1*(bmax.z-bmin.z);
+      //fprintf(stdout,"\nModel measures %s x %s x %s cm (%s\" x %s\" x %s\")\n",
+      //        nice_print(xc), nice_print(yc), nice_print(zc),
+      //        nice_print(xc/2.54), nice_print(yc/2.54), nice_print(zc/2.54));
+      fprintf(stdout,"\nModel measures %.3g x %.3g x %.3g cm (%.3g\" x %.3g\" x %.3g\")\n",
+              xc, yc, zc, xc/2.54, yc/2.54, zc/2.54);
+      fprintf(stdout,"\nModel measures %.3g\" x %.3g\" x %.3g\" (%.3g x %.3g x %.3g cm)\n",
+              xc/2.54, yc/2.54, zc/2.54, xc, yc, zc);
+   }
    fprintf(stdout,"\n");
 
    exit(0);
@@ -90,7 +106,9 @@ int Usage(char progname[MAX_FN_LEN],int status) {
    /* Usage for rockinfo */
    static char **cpp, *help_message[] =
    {
-       "   -cm         also compute and print center of mass                       ",
+       "   -nice       print the size nicely                                       ",
+       "                                                                           ",
+       "   -cm         also compute and print center of mass and volume            ",
        "                                                                           ",
        "   -help       (in place of infile) returns this help information          ",
        " ",
