@@ -2,7 +2,7 @@
  *
  *  inout.c - Input and output routines for triangle meshes
  *
- *  Mark J. Stock, mstock@umich.edu
+ *  Mark J. Stock, markjstock@gmail.com
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
@@ -49,7 +49,6 @@ int write_pov(tri_pointer, int);
 int write_rib(tri_pointer, int);
 int write_wrl(tri_pointer, int, int, char**);
 
-int find_mesh_stats(char *,VEC*,VEC*,int,VEC*,float*,int*,int*);
 int get_tri(FILE*,int,tri_pointer);
 int write_tri(FILE*,int,tri_pointer);
 
@@ -1782,36 +1781,50 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
    } else {
 
 
-   // first, scan the file for nodes
-   if (doCM) {
-      while (fread(&onechar,sizeof(char),1,ifp) == 1) {
-         if (onechar == 'v') {
-            fread(&anotherchar,sizeof(char),1,ifp);
-            if (isspace(anotherchar)) {
-               (*num_nodes)++;
-               if ((*num_nodes)/DOTPER == ((*num_nodes)+DPMO)/DOTPER) fprintf(stderr,".");
-            }
-         }
-         // anything else: skip it, do not add, do not write
-         fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
-         fscanf(ifp,"%[\n]",twochar);    // read newline
-      }
-      fprintf(stderr,"\n");
+   // first, scan the file for nodes and compute the min/max
+   VEC test;
+   while (fread(&onechar,sizeof(char),1,ifp) == 1) {
+      if (onechar == 'v') {
+         fread(&anotherchar,sizeof(char),1,ifp);
+         if (isspace(anotherchar)) {
+            // read a vertex location
+            fscanf(ifp,"%s %s %s",xs,ys,zs);
+            test.x = atof(xs);
+            test.y = atof(ys);
+            test.z = atof(zs);
+            if (test.x > bmax->x) bmax->x = test.x;
+            if (test.y > bmax->y) bmax->y = test.y;
+            if (test.z > bmax->z) bmax->z = test.z;
+            if (test.x < bmin->x) bmin->x = test.x;
+            if (test.y < bmin->y) bmin->y = test.y;
+            if (test.z < bmin->z) bmin->z = test.z;
 
-      // allocate space for the nodes
-      loc = (VEC*)malloc((*num_nodes)*sizeof(VEC));
-      // close and re-open it
-      fclose(ifp);
-      ifp = fopen(infile,"r");
-      if (ifp==NULL) {
-         fprintf(stderr,"Could not open input file %s\n",infile);
-         exit(0);
+            // and count
+            (*num_nodes)++;
+            if ((*num_nodes)/DOTPER == ((*num_nodes)+DPMO)/DOTPER) fprintf(stderr,".");
+         }
       }
-      fprintf(stderr,"Re-opening file %s",infile);
-      fflush(stderr);
+      // anything else: skip it, do not add, do not write
+      fscanf(ifp,"%[^\n]",sbuf);      // read line beyond first char
+      fscanf(ifp,"%[\n]",twochar);    // read newline
+   }
+   fprintf(stderr,"\n");
+
+   // allocate space for the nodes
+   if (doCM) {
+      loc = (VEC*)malloc((*num_nodes)*sizeof(VEC));
    }
 
-   VEC test;
+   // close and re-open it
+   fclose(ifp);
+   ifp = fopen(infile,"r");
+   if (ifp==NULL) {
+      fprintf(stderr,"Could not open input file %s\n",infile);
+      exit(0);
+   }
+   fprintf(stderr,"Re-opening file %s",infile);
+   fflush(stderr);
+
    int nv = 0;
    (*num_nodes) = 0;
    // read the input file and update statistics
@@ -1829,12 +1842,6 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
             test.x = atof(xs);
             test.y = atof(ys);
             test.z = atof(zs);
-            if (test.x > bmax->x) bmax->x = test.x;
-            if (test.y > bmax->y) bmax->y = test.y;
-            if (test.z > bmax->z) bmax->z = test.z;
-            if (test.x < bmin->x) bmin->x = test.x;
-            if (test.y < bmin->y) bmin->y = test.y;
-            if (test.z < bmin->z) bmin->z = test.z;
 
             // need to save every node if we are to compute CM
             if (doCM) {
@@ -1885,6 +1892,8 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
                }
             }
             //fprintf(stderr,"  %d %d %d\n",ni[0],ni[1],ni[2]);
+
+            // compute the volume of the prism of the original object
             double thisVolume = loc[ni[0]].x * (double)loc[ni[1]].y * loc[ni[2]].z
                               - loc[ni[0]].x * (double)loc[ni[2]].y * loc[ni[1]].z
                               - loc[ni[1]].x * (double)loc[ni[0]].y * loc[ni[2]].z
@@ -1913,10 +1922,10 @@ int __attribute__((optimize("O0"))) find_mesh_stats(char* infile, VEC* bmin, VEC
 
    if (doCM) {
       free(loc);
+      *vol = totalVolume;
       cm->x /= totalVolume;
       cm->y /= totalVolume;
       cm->z /= totalVolume;
-      *vol = totalVolume;
    }
 
    }
@@ -1940,11 +1949,6 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri) {
    char sbuf[512];
    char d[18][32];
    char k[3][32];
-
-   // free any memory associated with the normals
-   for (int i=0; i<3; i++) {
-      if (current_tri->norm[i] != NULL) free(current_tri->norm[i]);
-   }
 
    /* read a line from the input file */
    while (fscanf(input,"%[^\n]",sbuf) != EOF) {
@@ -1975,9 +1979,9 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri) {
             current_tri->node[2]->loc.z = atof(d[8]);
 
             if ((int)isdigit(d[9][0]) || d[9][0] == '+' || d[9][0] == '-') {
-              current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
-              current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
-              current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
+              if (current_tri->norm[0] == NULL) current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
+              if (current_tri->norm[1] == NULL) current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
+              if (current_tri->norm[2] == NULL) current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
               current_tri->norm[0]->norm.x = atof(d[9]);
               current_tri->norm[0]->norm.y = atof(d[10]);
               current_tri->norm[0]->norm.z = atof(d[11]);
@@ -2026,9 +2030,9 @@ int get_tri(FILE *input, int input_format, tri_pointer current_tri) {
             /* fprintf(stderr,"z-values are %s %s %s\n",d[2],d[5],d[8]); */
 
             /* assign values to triangle */
-            current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
-            current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
-            current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
+            if (current_tri->norm[0] == NULL) current_tri->norm[0] = (norm_ptr)malloc(sizeof(NORM));
+            if (current_tri->norm[1] == NULL) current_tri->norm[1] = (norm_ptr)malloc(sizeof(NORM));
+            if (current_tri->norm[2] == NULL) current_tri->norm[2] = (norm_ptr)malloc(sizeof(NORM));
             current_tri->norm[0]->norm.x = atof(d[0]);
             current_tri->norm[0]->norm.y = atof(d[1]);
             current_tri->norm[0]->norm.z = atof(d[2]);

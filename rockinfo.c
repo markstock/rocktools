@@ -2,7 +2,7 @@
  *
  *  rockinfo.c - Dump out some key info for each input file
  *
- *  Mark J. Stock, mstock@umich.edu
+ *  Mark J. Stock, markjstock@gmail.com
  *
  *
  * rocktools - Tools for creating and manipulating triangular meshes
@@ -121,8 +121,10 @@ int Usage(char progname[MAX_FN_LEN],int status) {
    };
 
    fprintf(stderr, "usage:\n  %s infile [-options]\n\n", progname);
-   for (cpp = help_message; *cpp; cpp++) fprintf(stderr, "%s\n", *cpp);
-   fflush(stderr);
+   for (cpp = help_message; *cpp; cpp++) {
+      fprintf(stderr, "%s\n", *cpp);
+      fflush(stderr);
+   }
    exit(status);
    return(0);
 }
