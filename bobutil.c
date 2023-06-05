@@ -473,6 +473,15 @@ int write_bob (tri_pointer tri_head, double *xb, double *yb, double *zb,
            start[1],start[1]+size[1],
            start[2],start[2]+size[2]);
 
+   if ((size_t)nx * (size_t)ny * (size_t)nz > 10000000000) {
+      fprintf(stderr,"Grid seems too large (%d %d %d), quitting!\n", nx, ny, nz);
+      exit(0);
+   }
+   if (nx < 0 || ny < 0 || nz < 0) {
+      fprintf(stderr,"Grid seems incorrect (%d %d %d), quitting!\n", nx, ny, nz);
+      exit(0);
+   }
+
    fprintf(stderr,"  brick will be %d x %d x %d\n",nx,ny,nz);
 
    // sanity check on bob size
