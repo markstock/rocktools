@@ -5,7 +5,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-20  Mark J. Stock
+ * Copyright (C) 2004-20,23  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -150,7 +150,8 @@ typedef enum render_type {
    surface,     // default is surface only
    volume,      // interior volume along pixel column
    first,       // first hit along pixel column
-   last         // last hit along column
+   last,        // last hit along column
+   edges        // render triangle edges only
 } RENDER;
 
 extern int write_xray(tri_pointer,VEC,double*,double*,double*,int,double,int,double,int,double,double,int,int,int,int,char*,char*,int);
@@ -240,6 +241,8 @@ int main(int argc,char **argv) {
          rtype = last;
       } else if (strncmp(argv[i], "-v", 2) == 0) {
          rtype = volume;
+      } else if (strncmp(argv[i], "-e", 2) == 0) {
+         rtype = edges;
       } else if (strncmp(argv[i], "-qqq", 4) == 0) {
          quality = 3;
       } else if (strncmp(argv[i], "-qq", 3) == 0) {
@@ -402,6 +405,8 @@ int Usage(char progname[MAX_FN_LEN],int status) {
        "   -s          image only the shell of the mesh (default behavior)         ",
        "                                                                           ",
        "   -v          image the volume of the mesh                                ",
+       "                                                                           ",
+       "   -e          image the edges of the mesh triangles                       ",
        "                                                                           ",
        "   -top        image the top surface of the mesh                           ",
        "                                                                           ",

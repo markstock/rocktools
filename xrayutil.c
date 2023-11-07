@@ -6,7 +6,7 @@
  *  Mark J. Stock, mstock@umich.edu
  *
  * rocktools - Tools for creating and manipulating triangular meshes
- * Copyright (C) 2004-15,21  Mark J. Stock
+ * Copyright (C) 2004-15,21,23  Mark J. Stock
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,8 +51,58 @@ typedef enum render_type {
    surface,     // default is surface only
    volume,      // interior volume along pixel column
    first,       // first hit along pixel column
-   last         // last hit along column
+   last,        // last hit along column
+   edges        // render triangle edges only
 } RENDER;
+
+/* Function to find minimum of x and y */
+int min(int x, int y)
+{
+  return y ^ ((x ^ y) & -(x < y));
+}
+
+/* Function to find maximum of x and y */
+int max(int x, int y)
+{
+  return x ^ ((x ^ y) & -(x < y));
+}
+
+//
+// min dist code from
+// http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+//
+double minimum_distance(double vx, double vy, double vz,
+                        double wx, double wy, double wz,
+                        double px, double py, double pz) {
+
+  //fprintf(stderr,"v %g %g %g\n",vx,vy,vz);
+  //fprintf(stderr,"w %g %g %g\n",wx,wy,wz);
+  //fprintf(stderr,"p %g %g %g\n",px,py,pz);
+
+  // Return minimum distance between line segment vw and point p
+  // i.e. |w-v|^2 -  avoid a sqrt
+  const double l2 = pow(vx-wx,2) + pow(vy-wy,2) + pow(vz-wz,2);
+
+  // v == w case (sphere)
+  if (l2 == 0.0) return sqrt( pow(vx-px,2) + pow(vy-py,2) + pow(vz-pz,2) );
+
+  // Consider the line extending the segment, parameterized as v + t (w - v).
+  // We find projection of point p onto the line. 
+  // It falls where t = [(p-v) . (w-v)] / |w-v|^2
+  const double t = ( (px-vx)*(wx-vx) + (py-vy)*(wy-vy) + (pz-vz)*(wz-vz) ) / l2;
+
+  // Beyond the 'v' end of the segment
+  if (t < 0.0) return sqrt( pow(vx-px,2) + pow(vy-py,2) + pow(vz-pz,2) );
+
+  // Beyond the 'w' end of the segment
+  else if (t > 1.0) return sqrt( pow(wx-px,2) + pow(wy-py,2) + pow(wz-pz,2) );
+
+  // Projection falls on the segment
+  const double jx = vx + t * (wx - vx);
+  const double jy = vy + t * (wy - vy);
+  const double jz = vz + t * (wz - vz);
+  return sqrt( pow(jx-px,2) + pow(jy-py,2) + pow(jz-pz,2) );
+}
 
 /*
  * Write a PGM image of the xray of the shell of a mesh
@@ -246,7 +296,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       num_norm_layers = 1;
       thick = 0.0;
    }
-   if (rtype != surface) {
+   if (rtype == edges) {
+      num_norm_layers = 1;
+      // keep thick
+   } else if (rtype != surface) {
       num_norm_layers = 1;
       thick = 0.0;
    }
@@ -341,10 +394,6 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
    while (this_tri) {
 #endif
 
-      const node_ptr n0 = this_tri->node[0];
-      const node_ptr n1 = this_tri->node[1];
-      const node_ptr n2 = this_tri->node[2];
-
       // first, see if the triangle is anywhere near the actual view window
 
       // check x-direction first
@@ -412,6 +461,52 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       }
 #endif
 
+      // split out edges now, before subdivision
+      if (rtype == edges) {
+         const double rad = thick/dd;
+
+         for (int iedge=0; iedge<3; ++iedge) {
+            const node_ptr n0 = this_tri->node[iedge];
+            const node_ptr n1 = this_tri->node[(iedge+1)%3];
+
+            // scale the tri into grid coords
+            const double x1 = (dot(vx,n0->loc) - xmin) / dd;
+            const double y1 = (dot(vy,n0->loc) - ymin) / dd;
+            //const double z1 = (dot(vz,n0->loc) - zmin) / dd;
+            const double x2 = (dot(vx,n1->loc) - xmin) / dd;
+            const double y2 = (dot(vy,n1->loc) - ymin) / dd;
+            //const double z2 = (dot(vz,n1->loc) - zmin) / dd;
+
+            // find x,y,z range affected by this segment
+            const int imin = max((int)floor(fmin(x1-rad, x2-rad)) - 1, 0);
+            const int imax = min((int)ceil(fmax(x1+rad, x2+rad)) + 1, xres);
+            const int jmin = max((int)floor(fmin(y1-rad, y2-rad)) - 1, 0);
+            const int jmax = min((int)ceil(fmax(y1+rad, y2+rad)) + 1, yres);
+
+            // loop over all pixels in the edge
+            for (int i=imin; i<imax; i++) {
+            for (int j=jmin; j<jmax; j++) {
+               // if dist is less than thick
+               // 3d version
+               //const double thisDist = minimum_distance(x1,y1,z1, x2,y2,z2, (double)i+0.5,(double)j+0.5,(double)k+0.5) - rad;
+               // 2d version
+               const float thisDist = minimum_distance(x1,y1,0.0, x2,y2,0.0, (double)i+0.5,(double)j+0.5,0.0) - rad;
+               // add fraction to total, cap at 1.0
+               // only update the array if this voxel is nearer to this segment
+               float thisVal = 0.f;
+               if (thisDist < -1.f) thisVal = 1.f;
+               else if (thisDist < 1.f) thisVal = 1.f - 0.5f*(1.f+thisDist);
+               if (thisVal > a[0][i][j]) a[0][i][j] = thisVal;
+            }
+            }
+         }
+
+      } else {
+         // all other rendering types
+
+      const node_ptr n0 = this_tri->node[0];
+      const node_ptr n1 = this_tri->node[1];
+      const node_ptr n2 = this_tri->node[2];
 
       // break the tri down into sub-triangles in the triangle plane
       const double area = find_area(this_tri);
@@ -432,6 +527,7 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
       // new method:
       int subdivisions = (int)((2.5+1.5*thisq)*sidelen/dd);
       if (subdivisions < 1) subdivisions = 1;
+
       //fprintf(stderr,"sidelen/dd is %g, area is %g, sidelen is %g\n",sidelen/dd,area,sidelen);
 
       // fprintf(stderr,"this tri is at %g %g %g, %g %g %g, %g %g %g\n",n0->loc.x,n0->loc.y,n0->loc.z,n1->loc.x,n1->loc.y,n1->loc.z,n2->loc.x,n2->loc.y,n2->loc.z);
@@ -705,8 +801,10 @@ int write_xray (tri_pointer tri_head, VEC vz, double *xb, double *yb, double *zb
 
 #endif  // not Gaussian
          }
-      }
-      }
+      } // end for i=0,num_subdivs
+      } // end for k=0,num_layers
+
+      } // end if rtype != edges
 
 #ifdef _OPENMP
       // loop through locks, releasing only the ones we used
