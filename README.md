@@ -289,3 +289,15 @@ The GNU Public License protects their work in rocktools, too.
 * Ken Clarkson - "hull" program
 * Jeff Norris - "Alpha" testing
 
+## Citing Rocktools
+
+I don't get paid for writing or maintaining this, so if you find this tool useful or mention it in your writing, please please cite it by using the following BibTeX entry.
+
+```
+@Misc{Rocktools2017,
+  author =       {Mark J.~Stock},
+  title =        {Rocktools:  Tools for creating and manipulating triangle meshes},
+  howpublished = {\url{https://github.com/markstock/rocktools}},
+  year =         {2017}
+}
+```
